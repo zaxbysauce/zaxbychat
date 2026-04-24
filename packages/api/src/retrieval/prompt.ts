@@ -129,6 +129,10 @@ export class PromptBuilder {
    * `parentRetrievalEnabled` is set and a parent window exists, the
    * wider window is rendered with the matched span wrapped in
    * `[[MATCH: …]]` markers.
+   * @note Metadata fields (`source_file`, `section_title`, `text`, etc.)
+   * flow directly into prompts. Sanitization / content filtering is a
+   * consideration for Phase 7/8 when this module is wired to live LLM
+   * calls. This matches the donor Python behavior.
    */
   formatChunk(chunk: RagSource, sourceIndex: number): string {
     const filename =
