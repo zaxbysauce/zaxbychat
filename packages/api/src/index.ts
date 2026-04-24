@@ -37,6 +37,8 @@ export * from './memory';
 export * from './agents';
 /* Citations (Phase 5) */
 export * from './citations';
+/* Retrieval (Phase 6) */
+export * from './retrieval';
 /* Prompts */
 export * from './prompts';
 /* Endpoints */
