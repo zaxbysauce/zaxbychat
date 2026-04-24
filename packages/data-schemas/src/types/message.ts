@@ -48,4 +48,16 @@ export interface IMessage extends Document {
   createdAt?: Date;
   updatedAt?: Date;
   tenantId?: string;
+  /**
+   * Phase 5 persisted normalized citation sources (additive; see
+   * `librechat-data-provider` `CitationSource`). Absent for pre-Phase-5
+   * messages and for turns without retrieval. Persistence only.
+   */
+  sources?: unknown[];
+  /**
+   * Phase 5 persisted inline anchors parsed from emitted `[n]` markers
+   * (`InlineAnchor[]`). Absent when the model did not cite. References
+   * `sources[*].id`, not transient array positions.
+   */
+  inlineAnchors?: unknown[];
 }
