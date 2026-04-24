@@ -736,6 +736,12 @@ export const interfaceSchema = z
       .optional(),
     fileSearch: z.boolean().optional(),
     fileCitations: z.boolean().optional(),
+    /**
+     * Phase 4 council mode feature flag. When true, clients may send
+     * `councilAgents` on chat requests and the server honors the parallel-legs
+     * plus synthesis graph. Default off per Phase 4 design doc §D4.
+     */
+    council: z.boolean().optional(),
     remoteAgents: z
       .object({
         use: z.boolean().optional(),
@@ -1736,6 +1742,16 @@ export enum ErrorTypes {
    * only raised in strict mode when enforcement escalates from strip-with-warn.
    */
   STRUCTURED_OUTPUT_NOT_SUPPORTED = 'structured_output_not_supported',
+  /**
+   * Council-mode request contained a duplicate (endpoint, model, agent_id?)
+   * tuple across primary + extras. Each leg must be unique.
+   */
+  COUNCIL_DUPLICATE_LEG = 'council_duplicate_leg',
+  /**
+   * Council-mode request exceeded the maximum of two extra legs. Total
+   * council size is bounded at 3 (primary + up to 2 extras).
+   */
+  COUNCIL_TOO_MANY_AGENTS = 'council_too_many_agents',
   /**
    * Missing model selection
    */
