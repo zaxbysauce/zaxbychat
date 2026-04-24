@@ -3,6 +3,7 @@ export * from './Assistants';
 export * from './Agents';
 export * from './Capabilities';
 export * from './Chat';
+export * from './Council';
 export * from './Config';
 export * from './Conversations';
 export * from './Nav';

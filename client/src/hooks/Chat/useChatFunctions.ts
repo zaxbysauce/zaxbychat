@@ -94,6 +94,8 @@ export default function useChatFunctions({
       overrideMessages,
       overrideFiles,
       addedConvo,
+      councilAgents,
+      councilStrategy,
     } = {},
   ) => {
     setShowStopButton(false);
@@ -332,6 +334,8 @@ export default function useChatFunctions({
       ephemeralAgent,
       editedContent,
       addedConvo,
+      councilAgents,
+      councilStrategy,
     };
 
     if (isRegenerate) {
