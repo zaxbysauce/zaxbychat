@@ -205,6 +205,129 @@ export function normalizeFileResults(
   return { sources, failures };
 }
 
+/**
+ * Raw GitHub source produced by `packages/api/src/mcp/github` per-tool
+ * parsers. Phase 7 PR 7.1 §D-P7-2.
+ *
+ * `repo` is required — it is the only field GitHub MCP tool outputs are
+ * guaranteed to carry across all citation-emitting tool shapes, and we
+ * don't fabricate repo identity. `itemType` + `itemId` discriminate the
+ * concrete object the citation points at; tool-specific helpers fill
+ * them as the payload allows.
+ */
+export interface RawGithubResult {
+  repo: string;
+  ref?: string;
+  path?: string;
+  lineStart?: number;
+  lineEnd?: number;
+  itemType?: 'repo' | 'file' | 'pr' | 'issue' | 'commit';
+  itemId?: string;
+  title?: string;
+  url?: string;
+  snippet?: string;
+  score?: number;
+}
+
+/**
+ * Converts a single raw GitHub-MCP result into a normalized
+ * `CitationSource` (kind: 'github'). Returns failure when the required
+ * `repo` is missing — we don't fabricate repo identity. Honest-shape:
+ * when `lineStart/lineEnd` are inconsistent or `itemType` doesn't match
+ * the rest of the shape, the helper returns failure rather than
+ * normalizing to a guess.
+ */
+export function toGithubCitationSource(
+  raw: RawGithubResult,
+  index: number,
+  options: NormalizationOptions,
+): NormalizationResult {
+  if (!raw || typeof raw.repo !== 'string' || raw.repo.length === 0) {
+    return {
+      ok: false,
+      failure: {
+        reason: 'missing_required_field',
+        details: 'repo is required for github sources',
+      },
+    };
+  }
+
+  if (
+    typeof raw.lineStart === 'number' &&
+    typeof raw.lineEnd === 'number' &&
+    raw.lineStart > raw.lineEnd
+  ) {
+    return {
+      ok: false,
+      failure: {
+        reason: 'invalid_field',
+        details: `lineStart (${raw.lineStart}) must be <= lineEnd (${raw.lineEnd})`,
+      },
+    };
+  }
+
+  const title =
+    typeof raw.title === 'string' && raw.title.length > 0
+      ? raw.title
+      : deriveGithubTitle(raw);
+
+  const candidate: CitationSource = {
+    id: `${options.idPrefix}:github:${index}`,
+    kind: 'github',
+    title,
+    url: typeof raw.url === 'string' && raw.url.length > 0 ? raw.url : undefined,
+    snippet: typeof raw.snippet === 'string' ? raw.snippet : undefined,
+    score: typeof raw.score === 'number' ? raw.score : undefined,
+    provider: options.provider,
+    ...(options.legAttribution ? { legAttribution: options.legAttribution } : {}),
+    kindSpecific: {
+      kind: 'github',
+      repo: raw.repo,
+      ...(typeof raw.ref === 'string' && raw.ref.length > 0 ? { ref: raw.ref } : {}),
+      ...(typeof raw.path === 'string' && raw.path.length > 0 ? { path: raw.path } : {}),
+      ...(typeof raw.lineStart === 'number' ? { lineStart: raw.lineStart } : {}),
+      ...(typeof raw.lineEnd === 'number' ? { lineEnd: raw.lineEnd } : {}),
+      ...(raw.itemType ? { itemType: raw.itemType } : {}),
+      ...(typeof raw.itemId === 'string' && raw.itemId.length > 0 ? { itemId: raw.itemId } : {}),
+    },
+  };
+
+  const parsed = citationSourceSchema.safeParse(candidate);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      failure: {
+        reason: 'invalid_field',
+        details: parsed.error.issues.map((i) => i.message).join('; '),
+      },
+    };
+  }
+  return { ok: true, source: parsed.data };
+}
+
+export function normalizeGithubResults(
+  rawResults: ReadonlyArray<RawGithubResult>,
+  options: NormalizationOptions,
+): { sources: CitationSource[]; failures: Array<{ index: number; failure: NormalizationFailure }> } {
+  const sources: CitationSource[] = [];
+  const failures: Array<{ index: number; failure: NormalizationFailure }> = [];
+  for (let i = 0; i < rawResults.length; i++) {
+    const result = toGithubCitationSource(rawResults[i], i, options);
+    if (result.ok) {
+      sources.push(result.source);
+    } else {
+      failures.push({ index: i, failure: result.failure });
+    }
+  }
+  return { sources, failures };
+}
+
+function deriveGithubTitle(raw: RawGithubResult): string {
+  if (raw.path) return `${raw.repo}:${raw.path}`;
+  if (raw.itemType && raw.itemId) return `${raw.repo} ${raw.itemType} #${raw.itemId}`;
+  return raw.repo;
+}
+
 function extractDomain(url: string): string | null {
   try {
     const parsed = new URL(url);

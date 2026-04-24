@@ -59,9 +59,8 @@
 - [x] query_transformer.py → `retrieval/query.ts` (step-back + optional HyDE + optional Redis; donor SHA 848f382)
 
 ### Phase 7 (GitHub first-class)
-- [ ] GitHub MCP server registration
-- [ ] Context selector (repo/file/PR/issue)
-- [ ] Tool-exposure scoping layer
+- [x] PR 7.1 — backend: GitHub MCP first-class identity (`kind: 'github'`) + `ingestGithubResults` peer to web/file ingest + per-tool citation parsers (`get_file_contents`, `search_code`, `list_pull_requests`, `pull_request_read`, `list_issues`, `issue_read`, `get_commit`, `list_commits`, `search_repositories`) + `GITHUB_MCP_FIRST_CLASS` runtime flag + tool-end callback branch in `api/server/controllers/agents/callbacks.js` + commented `librechat.example.yaml` block.
+- [ ] PR 7.2 — frontend context selector (repo/file/PR/issue) + dedicated GitHub MCP tool-exposure scoping layer (NOT reusing `v1.js:110-171`) + i18n.
 
 ### Phase 8 (Deployment & cleanup)
 - [ ] Docker/deployment docs (control-plane emphasis)
@@ -124,9 +123,23 @@
 - `packages/api/src/index.ts` (re-exports `./retrieval`)
 
 ### Phase 7
-- `packages/api/src/mcp/MCPManager.ts` (GitHub server registration)
-- `client/src/components/Chat/` (GitHub context selector)
-- `api/server/controllers/agents/v1.js` (tool-exposure scoping, new layer)
+
+**PR 7.1 (landed)**
+- `packages/data-provider/src/mcp.ts` — `BaseOptionsSchema` gains optional `kind: z.literal('github').optional()` marker. Identity is strictly opt-in.
+- `packages/data-provider/src/citations/normalize.ts` — adds `RawGithubResult`, `toGithubCitationSource`, `normalizeGithubResults`. Required `repo`; failure on missing repo / inverted line ranges; honest title derivation.
+- `packages/api/src/mcp/github/flag.ts` — `isGithubFirstClassEnabled` reads `GITHUB_MCP_FIRST_CLASS` (default-off; cached per process).
+- `packages/api/src/mcp/github/identity.ts` — `isGithubMcpServer`, `parseGithubMcpToolKey`, `isGithubMcpToolKey` helpers. No URL/hostname heuristics.
+- `packages/api/src/mcp/github/parsers.ts` — per-tool parser registry mapping MCP payloads to `RawGithubResult[]`. Mutating tools and unknown tool names route to `[]`. Parser throws are swallowed.
+- `packages/api/src/mcp/github/index.ts` — barrel.
+- `packages/api/src/citations/persist.ts` — adds `ingestGithubResults` peer to `ingestWebResults` / `ingestFileResults`. Hard-gated on flag + allowlisted tool name.
+- `packages/api/src/index.ts` — re-exports `./mcp/github` next to existing MCP exports.
+- `api/server/controllers/agents/callbacks.js` — adds `extractMcpJsonPayload` helper + GitHub MCP branch in `createToolEndCallback`, ahead of the artifact early-exit. Reuses Phase 5's `_citationBuffer` accumulator.
+- `librechat.example.yaml` — commented `mcpServers.github` example showing the `kind: 'github'` marker + PAT header.
+
+**PR 7.2 (pending — see PR 7.1 plan write-up)**
+- `packages/api/src/mcp/github/scope.ts` (hard-capped allowlist enforcement, NEW layer; do **not** reuse `v1.js:110-171`).
+- `client/src/components/SidePanel/GitHub/` (repo/file/PR/issue selector).
+- i18n `client/src/locales/en/translation.json` — `com_github_*` keys.
 
 ### Phase 8
 - `docs/` (deployment docs)
@@ -200,8 +213,17 @@
 - Summary: 69 tests across 5 suites, all passing (`cd packages/api && npx jest retrieval`).
 
 ### Phase 7
-- [ ] `packages/api/src/__tests__/mcp/github.test.ts` — GitHub MCP server registration
-- [ ] Integration: attach GitHub context → grounded answer with GitHub citations
+
+**PR 7.1 (landed)**
+- [x] `packages/data-provider/src/__tests__/citations.normalize.test.ts` — `toGithubCitationSource` ok/failure paths (missing repo, inverted line range, title derivation, leg attribution); `normalizeGithubResults` batch order + per-index failure reporting.
+- [x] `packages/api/src/mcp/github/__tests__/flag.test.ts` — `GITHUB_MCP_FIRST_CLASS` truthiness rules; cache reset.
+- [x] `packages/api/src/mcp/github/__tests__/identity.test.ts` — `isGithubMcpServer` is true only for explicit `kind: 'github'` (no URL heuristics); `parseGithubMcpToolKey` handles tool names with underscores; `isGithubMcpToolKey` resolves via injected resolver.
+- [x] `packages/api/src/mcp/github/__tests__/parsers.test.ts` — per-tool parsers (file/code/issue/pr/commit/repo) produce schema-valid sources; mutating tools and unknown names yield `[]`; parser throws yield `[]`; honest-shape on missing repo/path/number.
+- [x] `packages/api/src/citations/__tests__/persist.github.test.ts` — flag-off no-op; non-allowlisted no-op; appends after existing sources without renumbering; threads `legAttribution`; preserves identity across repeat ingests; multi-citation `search_code` ingestion.
+- Summary: 37 new tests across 5 suites (data-provider 6 + packages/api 31), all green via `cd packages/data-provider && npx jest citations.normalize` and `cd packages/api && npx jest --testPathPatterns "(github|citations)"`.
+
+**PR 7.2 (pending)**
+- [ ] frontend selector + scope-layer unit tests + e2e smoke (attach repo → grounded answer with `kind: 'github'` citations).
 
 ### Phase 8
 - [ ] `npm run e2e:ci` updated: add 3-model council smoke
@@ -271,10 +293,18 @@ Similar per-phase lint, test, build gates (listed in migration-notes.md).
 - [ ] Council mode: synthesis cites which leg discovered each source
 
 ### Phase 7
-- [ ] GitHub MCP server appears in tool list
-- [ ] "Attach GitHub context" → repo/file picker
-- [ ] Attach file from repo → grounded answer cites repo + path + line range
-- [ ] Attach PR/issue → answer cites PR/issue number + description snippet
+
+**PR 7.1 (landed) — backend ingest only, no UI yet:**
+- [x] `kind: 'github'` MCP server config validates against `MCPOptionsSchema`.
+- [x] With `GITHUB_MCP_FIRST_CLASS=true` and a `kind: 'github'` server in `librechat.yaml`, allowlisted GitHub MCP tool calls populate `_citationBuffer` with `kindSpecific.kind: 'github'` sources.
+- [x] Mutating tools (`create_*`, `update_*`, `add_*`, `merge_*`, etc.) emit no citations (verified by parser unit tests).
+- [x] Identity is strictly opt-in — no URL/hostname heuristics; absence of `kind` keeps the server generic.
+
+**PR 7.2 (pending):**
+- [ ] GitHub context selector UI (repo/file/PR/issue picker).
+- [ ] Attach file from repo → grounded answer cites repo + path + line range.
+- [ ] Attach PR/issue → answer cites PR/issue number + description snippet.
+- [ ] Tool-exposure scoping layer enforces hard-cap allowlist (separate layer from `v1.js:110-171`).
 
 ### Phase 8
 - [ ] Feature flags OFF → council mode, capability enforcement, new citations hidden
@@ -300,7 +330,7 @@ Similar per-phase lint, test, build gates (listed in migration-notes.md).
 | Phase 4 | 3 | ⏳ Pending | — |
 | Phase 5 | 2 | ⏳ Pending | — |
 | Phase 6 | 1 | ⏳ Pending | — |
-| Phase 7 | 2 | ⏳ Pending | — |
+| Phase 7 | 2 | 🟡 PR 7.1 landed; PR 7.2 pending | — |
 | Phase 8 | 1 | ⏳ Pending | — |
 
 ---

@@ -16,6 +16,8 @@ export * from './mcp/zod';
 export * from './mcp/errors';
 export * from './mcp/cache';
 export * from './mcp/tools';
+/* MCP — GitHub first-class (Phase 7) */
+export * from './mcp/github';
 /* Utilities */
 export * from './mcp/utils';
 export * from './utils';
