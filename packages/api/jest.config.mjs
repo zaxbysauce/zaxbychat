@@ -26,6 +26,7 @@ export default {
   moduleNameMapper: {
     '^@src/(.*)$': '<rootDir>/src/$1',
     '~/(.*)': '<rootDir>/src/$1',
+    '^@librechat/agents$': '<rootDir>/src/__mocks__/@librechat__agents.ts',
   },
   // coverageThreshold: {
   //   global: {

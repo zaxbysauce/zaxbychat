@@ -16,6 +16,27 @@ import { getCustomEndpointConfig } from '~/app/config';
 export type InitializeFn = (params: BaseInitializeParams) => Promise<InitializeResultBase>;
 
 /**
+ * Maps compatibilityType (from EndpointRegistryEntry) to its initialize function.
+ * Extend here when new protocol families are needed; do not add per-vendor entries.
+ */
+export const compatibilityTypeInitMap: Record<string, InitializeFn> = {
+  openai: initializeOpenAI,
+  azure_openai: initializeOpenAI,
+  google: initializeGoogle,
+  anthropic: initializeAnthropic,
+  bedrock: initializeBedrock,
+  generic_openai_compatible: initializeCustom,
+};
+
+/**
+ * Resolves an initialize function from a declared compatibilityType.
+ * Returns undefined when the type is unknown so callers can fall back.
+ */
+export function resolveInitFromCompatibility(compatibilityType: string): InitializeFn | undefined {
+  return compatibilityTypeInitMap[compatibilityType];
+}
+
+/**
  * Check if the provider is a known custom provider
  * @param provider - The provider string
  * @returns True if the provider is a known custom provider, false otherwise
