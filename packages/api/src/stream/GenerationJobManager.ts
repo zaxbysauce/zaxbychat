@@ -6,6 +6,7 @@ import type {
   SerializableJobData,
   IEventTransport,
   UsageMetadata,
+  SynthesisState,
   AbortResult,
   IJobStore,
 } from './interfaces/IJobStore';
@@ -507,6 +508,40 @@ class GenerationJobManagerClass {
    */
   async hasJob(streamId: string): Promise<boolean> {
     return this.jobStore.hasJob(streamId);
+  }
+
+  /**
+   * Merge a partial `SynthesisState` update into the persisted job record
+   * (Phase 4 resume protocol). Non-council jobs never invoke this.
+   *
+   * The update is shallow-merged onto any existing state so callers can
+   * record `{started: true}` then later `{emittedIndex, text}` without
+   * restating unrelated fields.
+   */
+  async setSynthesisState(
+    streamId: string,
+    partial: Partial<SynthesisState>,
+  ): Promise<void> {
+    const existing = await this.jobStore.getJob(streamId);
+    if (!existing) {
+      return;
+    }
+    const next: SynthesisState = {
+      strategy: partial.strategy ?? existing.synthesisState?.strategy ?? 'compare_and_synthesize',
+      started: partial.started ?? existing.synthesisState?.started ?? false,
+      completed: partial.completed ?? existing.synthesisState?.completed ?? false,
+      emittedIndex: partial.emittedIndex ?? existing.synthesisState?.emittedIndex ?? 0,
+      text: partial.text ?? existing.synthesisState?.text,
+      legStatus: partial.legStatus ?? existing.synthesisState?.legStatus ?? [],
+      partial: partial.partial ?? existing.synthesisState?.partial ?? false,
+    };
+    await this.jobStore.updateJob(streamId, { synthesisState: next });
+  }
+
+  /** Returns the persisted `SynthesisState` for a job, or undefined. */
+  async getSynthesisState(streamId: string): Promise<SynthesisState | undefined> {
+    const data = await this.jobStore.getJob(streamId);
+    return data?.synthesisState;
   }
 
   /**
