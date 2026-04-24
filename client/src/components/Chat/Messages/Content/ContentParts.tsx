@@ -3,6 +3,8 @@ import { ContentTypes } from 'librechat-data-provider';
 import type {
   TMessageContentParts,
   SearchResultData,
+  CitationSource,
+  InlineAnchor,
   TAttachment,
   Agents,
 } from 'librechat-data-provider';
@@ -27,6 +29,8 @@ type PartWithContextProps = {
   isCreatedByUser: boolean;
   isLast: boolean;
   partAttachments: TAttachment[] | undefined;
+  sources?: CitationSource[];
+  inlineAnchors?: InlineAnchor[];
 };
 
 const PartWithContext = memo(function PartWithContext({
@@ -41,6 +45,8 @@ const PartWithContext = memo(function PartWithContext({
   isCreatedByUser,
   isLast,
   partAttachments,
+  sources,
+  inlineAnchors,
 }: PartWithContextProps) {
   const contextValue = useMemo(
     () => ({
@@ -51,8 +57,10 @@ const PartWithContext = memo(function PartWithContext({
       nextType,
       isSubmitting,
       isLatestMessage,
+      sources,
+      inlineAnchors,
     }),
-    [messageId, conversationId, idx, nextType, isSubmitting, isLatestMessage],
+    [messageId, conversationId, idx, nextType, isSubmitting, isLatestMessage, sources, inlineAnchors],
   );
 
   return (
@@ -87,6 +95,10 @@ type ContentPartsProps = {
     | ((value: number) => void | React.Dispatch<React.SetStateAction<number>>)
     | null
     | undefined;
+  /** Phase 5 — persisted citation sources for this message. */
+  sources?: CitationSource[];
+  /** Phase 5 — persisted inline anchors parsed from `[n]` markers. */
+  inlineAnchors?: InlineAnchor[];
 };
 
 /**
@@ -109,6 +121,8 @@ const ContentParts = memo(function ContentParts({
   conversationId,
   isCreatedByUser,
   isLatestMessage,
+  sources,
+  inlineAnchors,
 }: ContentPartsProps) {
   const attachmentMap = useMemo(() => mapAttachments(attachments ?? []), [attachments]);
   const effectiveIsSubmitting = isLatestMessage ? isSubmitting : false;
@@ -130,6 +144,8 @@ const ContentParts = memo(function ContentParts({
           nextType={content?.[idx + 1]?.type}
           isSubmitting={effectiveIsSubmitting}
           partAttachments={attachmentMap[toolCallId]}
+          sources={sources}
+          inlineAnchors={inlineAnchors}
         />
       );
     },
@@ -142,6 +158,8 @@ const ContentParts = memo(function ContentParts({
       isLast,
       isLatestMessage,
       messageId,
+      sources,
+      inlineAnchors,
     ],
   );
 

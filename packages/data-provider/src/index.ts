@@ -31,6 +31,7 @@ export * from './types/runs';
 export * from './types/web';
 export * from './types/graph';
 export * from './types/sources';
+export * from './citations';
 export * from './types/registry';
 /* access permissions */
 export * from './accessPermissions';

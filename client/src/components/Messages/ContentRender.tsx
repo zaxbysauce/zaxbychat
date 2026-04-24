@@ -6,6 +6,7 @@ import type { TMessageProps, TMessageIcon, TMessageChatContext } from '~/common'
 import { useAttachments, useLocalize, useMessageActions, useContentMetadata } from '~/hooks';
 import { cn, getHeaderPrefixForScreenReader, getMessageAriaLabel } from '~/utils';
 import ContentParts from '~/components/Chat/Messages/Content/ContentParts';
+import PersistedSources from '~/components/Web/PersistedSources';
 import PlaceholderRow from '~/components/Chat/Messages/ui/PlaceholderRow';
 import SiblingSwitch from '~/components/Chat/Messages/SiblingSwitch';
 import HoverButtons from '~/components/Chat/Messages/HoverButtons';
@@ -222,7 +223,19 @@ const ContentRender = memo(function ContentRender({
               isCreatedByUser={msg.isCreatedByUser}
               conversationId={conversation?.conversationId}
               content={msg.content as Array<TMessageContentParts | undefined>}
+              sources={msg.sources}
+              inlineAnchors={msg.inlineAnchors}
             />
+            {!msg.isCreatedByUser && msg.sources && msg.sources.length > 0 && (
+              <PersistedSources
+                sources={msg.sources}
+                citedIds={
+                  msg.inlineAnchors
+                    ? new Set(msg.inlineAnchors.map((a) => a.sourceId))
+                    : undefined
+                }
+              />
+            )}
           </div>
           {hasNoChildren && isSubmitting ? (
             <PlaceholderRow />

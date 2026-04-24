@@ -155,6 +155,26 @@ const messageSchema: Schema<IMessage> = new Schema(
       type: String,
       index: true,
     },
+    /**
+     * Phase 5 persisted citation sources (PR 5.1 §D-P5-1). Optional, additive.
+     * Mongoose stores the documents as opaque Mixed records — application code
+     * validates against `citationSourceSchema` from `librechat-data-provider`
+     * before write. Omitting this field on legacy messages is the explicit
+     * "no citations" signal; readers must handle `undefined` gracefully.
+     */
+    sources: {
+      type: [Schema.Types.Mixed],
+      default: undefined,
+    },
+    /**
+     * Phase 5 persisted inline citation anchors (PR 5.1 §D-P5-2). One entry
+     * per `[n]` marker the model actually emitted; never invented. References
+     * `sources[*].id`, not array positions.
+     */
+    inlineAnchors: {
+      type: [Schema.Types.Mixed],
+      default: undefined,
+    },
   },
   { timestamps: true },
 );

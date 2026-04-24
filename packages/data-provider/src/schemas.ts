@@ -720,6 +720,20 @@ export type TMessage = z.input<typeof tMessageSchema> & {
   attachments?: TAttachment[];
   clientTimestamp?: string;
   feedback?: TFeedback;
+  /**
+   * Phase 5 persisted normalized citation sources.
+   * Present for turns that used retrieval (web_search, file_search);
+   * absent for pre-Phase-5 messages and for turns without retrieval.
+   * See `CitationSource` from `./types/sources`.
+   */
+  sources?: import('./types/sources').CitationSource[];
+  /**
+   * Phase 5 persisted inline citation anchors parsed from `[n]` markers
+   * the model actually emitted. References `sources[*].id`. Empty or absent
+   * when the model did not cite; never fabricated.
+   * See `InlineAnchor` from `./types/sources`.
+   */
+  inlineAnchors?: import('./types/sources').InlineAnchor[];
 };
 
 export const coerceNumber = z.union([z.number(), z.string()]).transform((val) => {

@@ -35,6 +35,8 @@ export * from './middleware';
 export * from './memory';
 /* Agents */
 export * from './agents';
+/* Citations (Phase 5) */
+export * from './citations';
 /* Prompts */
 export * from './prompts';
 /* Endpoints */
