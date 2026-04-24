@@ -44,6 +44,44 @@ export interface SerializableJobData {
   iconURL?: string;
   model?: string;
   promptTokens?: number;
+
+  /**
+   * Phase 4 council-mode resume state. Absent for non-council jobs. When
+   * present, the resume protocol picks up from the state's current phase:
+   *   started=false → resume into legs (existing pendingEvents replay)
+   *   started=true, completed=false → replay legs + synthesis delta up to emittedIndex
+   *   started=true, completed=true → replay legs + full synthesis text, then [DONE]
+   */
+  synthesisState?: SynthesisState;
+}
+
+/**
+ * Council-mode synthesis state persisted on the job record for resume.
+ * See docs/phase-4-council-design.md §Resume protocol.
+ */
+export interface SynthesisState {
+  strategy: 'primary_critic' | 'best_of_three' | 'compare_and_synthesize';
+  /** Set true once the synthesis node starts streaming. */
+  started: boolean;
+  /** Set true once synthesis finishes (success or graceful skip). */
+  completed: boolean;
+  /** Character count of synthesis text already emitted on the stream. */
+  emittedIndex: number;
+  /** Full synthesis text at completion. Only populated once completed===true. */
+  text?: string;
+  /**
+   * Per-leg status recorded as legs terminate. Supports the `partial` affordance
+   * when one or more legs failed while at least one succeeded.
+   */
+  legStatus: Array<{
+    legId: string;
+    agentId: string;
+    model: string;
+    status: 'succeeded' | 'failed';
+    error?: string;
+  }>;
+  /** True iff at least one leg failed while at least one succeeded. */
+  partial: boolean;
 }
 
 /**
@@ -78,6 +116,13 @@ export interface UsageMetadata {
   model?: string;
   /** Provider identifier that generated this usage */
   provider?: string;
+  /**
+   * Phase 4 council-mode: identifies which council leg (or `__synthesis__`)
+   * produced this usage. Absent for non-council runs. Carried through
+   * `recordCollectedUsage` → `TxMetadata` → persisted `TransactionData`
+   * so each leg bills as its own row.
+   */
+  agentId?: string;
   /**
    * OpenAI-style cache token details.
    * Present for OpenAI models (GPT-4, o1, etc.)
