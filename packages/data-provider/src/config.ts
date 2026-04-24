@@ -1355,6 +1355,17 @@ export const EndpointURLs = {
   [EModelEndpoint.agents]: `${apiBaseUrl()}/api/${EModelEndpoint.agents}/chat`,
 } as const;
 
+/**
+ * Resolves the base server URL for a given endpoint and optional endpointType.
+ * Mirrors the routing logic in createPayload without the /modify suffix.
+ */
+export function getEndpointUrl(endpoint: string, endpointType?: string): string {
+  const resolved = (endpointType ?? endpoint) as EModelEndpoint | string;
+  if (resolved === EModelEndpoint.azureAssistants) return EndpointURLs[EModelEndpoint.azureAssistants];
+  if (resolved === EModelEndpoint.assistants) return EndpointURLs[EModelEndpoint.assistants];
+  return `${EndpointURLs[EModelEndpoint.agents]}/${endpoint}`;
+}
+
 export const modularEndpoints = new Set<EModelEndpoint | string>([
   EModelEndpoint.anthropic,
   EModelEndpoint.google,

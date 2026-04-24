@@ -8,6 +8,31 @@ import {
   authTypeSchema,
 } from './schemas';
 
+/** Per-model inference capabilities, consolidated on TModelSpec. */
+export type ModelCapabilities = {
+  chat: boolean;
+  vision: boolean;
+  files: boolean;
+  toolCalling: boolean;
+  structuredOutput: boolean;
+  streaming: boolean;
+  embeddings: boolean;
+  rerank: boolean;
+  reasoning: boolean;
+};
+
+export const modelCapabilitiesSchema = z.object({
+  chat: z.boolean(),
+  vision: z.boolean(),
+  files: z.boolean(),
+  toolCalling: z.boolean(),
+  structuredOutput: z.boolean(),
+  streaming: z.boolean(),
+  embeddings: z.boolean(),
+  rerank: z.boolean(),
+  reasoning: z.boolean(),
+});
+
 export type TModelSpec = {
   name: string;
   label: string;
@@ -30,13 +55,15 @@ export type TModelSpec = {
   groupIcon?: string | EModelEndpoint;
   showIconInMenu?: boolean;
   showIconInHeader?: boolean;
-  iconURL?: string | EModelEndpoint; // Allow using project-included icons
+  iconURL?: string | EModelEndpoint;
   authType?: AuthType;
   webSearch?: boolean;
   fileSearch?: boolean;
   executeCode?: boolean;
   artifacts?: string | boolean;
   mcpServers?: string[];
+  /** Formal per-model capability flags. Absent fields are inferred conservatively. */
+  capabilities?: ModelCapabilities;
 };
 
 export const tModelSpecSchema = z.object({
@@ -57,6 +84,7 @@ export const tModelSpecSchema = z.object({
   executeCode: z.boolean().optional(),
   artifacts: z.union([z.string(), z.boolean()]).optional(),
   mcpServers: z.array(z.string()).optional(),
+  capabilities: modelCapabilitiesSchema.optional(),
 });
 
 export const specsConfigSchema = z.object({
