@@ -230,3 +230,29 @@ Confirmed fields consumed by `loadAddedAgent()` (`packages/api/src/agents/added.
 - Client `ParallelContent.tsx:47-121` already generates columns dynamically — no 2-leg hardcoding. Ready for ≥3.
 
 No structural blockers. Proceeding to PR 4.1.
+
+---
+
+## PR B addendum — accepted deviation from §D2 literal interpretation (2026-04-24)
+
+**Context.** During PR B runtime-wire-up verification, a Q2 probe revealed that `@librechat/agents`'s `graphConfig.edges` controls execution order but does not give a public hook to rewrite a node's input `state.messages` before its LLM call. The sanitization contract we shipped in PR A's synthesis templates (legs wrapped in `<leg>` tags as untrusted input) cannot be preserved if leg outputs naturally accumulate into the synthesis node's `state.messages` as prior assistant turns via LangGraph conventions.
+
+**Decision.** Implement §D2 as a **two-phase execution within one council job and SSE stream**:
+- Phase 1 runs the parallel legs via the existing multi-start-node graph shape (same mechanism `addedConvo` uses today, extended for up to 2 extras per D8).
+- Phase 2 invokes a second `Run.create` for a single-agent graph that runs the synthesis node. The synthesis prompt is built via the already-shipped `buildSynthesisPrompt` helper using the phase-1 leg outputs. Both invocations share the same Express `res`, the same `AbortHierarchy`, the same `SynthesisState` marker, the same request lifecycle.
+
+**What this preserves.**
+- **Observable contract**: legs stream → synthesis streams on same SSE stream → same request/job lifecycle → explicit synthesis part type → three-state resume → stop semantics → (K+1)-row transaction accounting → partial-failure honesty.
+- **Sanitization contract**: legs remain untrusted XML-tagged input to the synthesis prompt. PR A's 13 template tests stay green.
+- **Public-API-only usage of `@librechat/agents`**: two standard `Run.create` calls with documented shapes. No fork, no SDK internals, no speculative pre-call hooks.
+- **D3 abort hierarchy**: parent cascades to phase-1 leg children AND to the phase-2 synthesis child. Stop-one abort only applies during phase 1 (synthesis hasn't started). Stop-synthesis only applies during phase 2.
+
+**What this does not change.**
+- D1 (additive `councilAgents` alongside `addedConvo`).
+- D4 (`interfaceSchema.council` flag, default off — non-activating).
+- D5 (partial synthesis when ≥1 leg succeeds; fail-all → no synthesis, no fake row).
+- D6 (compare_and_synthesize default).
+- D7 (server-authoritative budget estimate, client informational only, real execution accounting).
+- D8 (extras-only, max 2 council agents; uniqueness validated).
+
+**Semantic reframing of §D2.** "Synthesis as the final graph node" is now treated as a **behavioral requirement**, not a literal single-graph requirement. The user-visible contract is identical; the implementation uses two `Run.create` invocations within one SSE stream because that is the only path that preserves the sanitization contract under the verified runtime constraints. This deviation is narrow, honest, and documented here as the binding reference for PR B reviewers.
