@@ -15,7 +15,11 @@ const {
   createToolExecuteHandler,
   ingestWebResults,
   ingestFileResults,
+  ingestGithubResults,
+  isGithubMcpServer,
+  parseGithubMcpToolKey,
 } = require('@librechat/api');
+const { getMCPServersRegistry } = require('~/config');
 const { processFileCitations } = require('~/server/services/Files/Citations');
 const { processCodeOutput } = require('~/server/services/Files/Code/process');
 const { loadAuthValues } = require('~/server/services/Tools/credentials');
@@ -342,6 +346,31 @@ function getAccumulatedSources(req, messageId) {
   return req?._citationBuffer?.sourcesByMessage?.get(messageId) ?? [];
 }
 
+/**
+ * Phase 7 PR 7.1 — extract a JSON-parseable payload from an MCP tool
+ * result. Defensive helper: returns `undefined` when the result text
+ * is not a single JSON object/array (we don't guess at half-structured
+ * output).
+ */
+function extractMcpJsonPayload(output) {
+  if (!output) return undefined;
+  const content = output.content;
+  const text =
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content) && content[0]?.type === 'text' && typeof content[0].text === 'string'
+        ? content[0].text
+        : null;
+  if (!text) return undefined;
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return undefined;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return undefined;
+  }
+}
+
 function createToolEndCallback({ req, res, artifactPromises, streamId = null }) {
   /**
    * @type {ToolEndCallback}
@@ -350,6 +379,44 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
     const output = data?.output;
     if (!output) {
       return;
+    }
+
+    /*
+     * Phase 7 PR 7.1 — GitHub MCP citation ingest.
+     * Runs before the artifact-keyed branches because GitHub MCP tool
+     * results carry their payload as JSON-stringified content, not as a
+     * named `output.artifact[Tools.*]` key. The ingest is gated by:
+     *   1) `kind: 'github'` on the resolved MCP server config.
+     *   2) `GITHUB_MCP_FIRST_CLASS=true` runtime flag (default-off).
+     * Both gates fail-closed: any error or ambiguity skips citation
+     * emission rather than guessing.
+     */
+    try {
+      const toolKey = output.name;
+      if (typeof toolKey === 'string' && metadata?.run_id) {
+        const parsedKey = parseGithubMcpToolKey(toolKey);
+        if (parsedKey) {
+          const cfg = await getMCPServersRegistry()
+            .getServerConfig(parsedKey.serverName, req.user?.id)
+            .catch(() => undefined);
+          if (isGithubMcpServer(cfg)) {
+            const payload = extractMcpJsonPayload(output);
+            if (payload !== undefined) {
+              const existing = getAccumulatedSources(req, metadata.run_id);
+              const ingest = ingestGithubResults({
+                messageId: metadata.run_id,
+                toolName: parsedKey.toolName,
+                payload,
+                provider: parsedKey.serverName,
+                existingSources: existing,
+              });
+              appendCitationSources(req, metadata.run_id, ingest.added);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn('[citations] Failed to ingest GitHub MCP sources', err);
     }
 
     if (!output.artifact) {

@@ -245,3 +245,120 @@ describe('normalizeFileResults — batch', () => {
     expect(failures[0].index).toBe(1);
   });
 });
+
+describe('toGithubCitationSource (Phase 7 PR 7.1)', () => {
+  it('returns ok when repo is present; passes contract', () => {
+    const { toGithubCitationSource } = require('../citations/normalize');
+    const result = toGithubCitationSource(
+      {
+        repo: 'a/b',
+        path: 'src/x.ts',
+        ref: 'main',
+        lineStart: 1,
+        lineEnd: 10,
+        itemType: 'file',
+        url: 'https://github.com/a/b/blob/main/src/x.ts',
+      },
+      0,
+      { idPrefix: 'm', provider: 'github' },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.source.id).toBe('m:github:0');
+      expect(result.source.kind).toBe('github');
+      expect(result.source.kindSpecific).toMatchObject({
+        kind: 'github',
+        repo: 'a/b',
+        path: 'src/x.ts',
+        ref: 'main',
+        lineStart: 1,
+        lineEnd: 10,
+        itemType: 'file',
+      });
+    }
+  });
+
+  it('returns failure when repo is missing (no fabrication)', () => {
+    const { toGithubCitationSource } = require('../citations/normalize');
+    const result = toGithubCitationSource(
+      { path: 'x' },
+      0,
+      { idPrefix: 'm', provider: 'github' },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.reason).toBe('missing_required_field');
+    }
+  });
+
+  it('returns failure when lineStart > lineEnd', () => {
+    const { toGithubCitationSource } = require('../citations/normalize');
+    const result = toGithubCitationSource(
+      { repo: 'a/b', path: 'x', lineStart: 10, lineEnd: 1 },
+      0,
+      { idPrefix: 'm', provider: 'github' },
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it('derives a sensible title when none is provided', () => {
+    const { toGithubCitationSource } = require('../citations/normalize');
+    const fileResult = toGithubCitationSource(
+      { repo: 'a/b', path: 'src/x.ts' },
+      0,
+      { idPrefix: 'm', provider: 'github' },
+    );
+    expect(fileResult.ok && fileResult.source.title).toBe('a/b:src/x.ts');
+
+    const issueResult = toGithubCitationSource(
+      { repo: 'a/b', itemType: 'issue', itemId: '42' },
+      0,
+      { idPrefix: 'm', provider: 'github' },
+    );
+    expect(issueResult.ok && issueResult.source.title).toBe('a/b issue #42');
+
+    const repoResult = toGithubCitationSource(
+      { repo: 'a/b' },
+      0,
+      { idPrefix: 'm', provider: 'github' },
+    );
+    expect(repoResult.ok && repoResult.source.title).toBe('a/b');
+  });
+
+  it('threads legAttribution through normalized output', () => {
+    const { toGithubCitationSource } = require('../citations/normalize');
+    const result = toGithubCitationSource(
+      { repo: 'a/b', path: 'x' },
+      0,
+      {
+        idPrefix: 'm',
+        provider: 'github',
+        legAttribution: { legId: 'leg-1', role: 'inherited' },
+      },
+    );
+    expect(result.ok && result.source.legAttribution).toEqual({
+      legId: 'leg-1',
+      role: 'inherited',
+    });
+  });
+});
+
+describe('normalizeGithubResults — batch', () => {
+  it('preserves order and reports failures per index', () => {
+    const { normalizeGithubResults } = require('../citations/normalize');
+    const raw = [
+      { repo: 'a/b', path: 'x' },
+      { path: 'no-repo' },
+      { repo: 'c/d', itemType: 'pr', itemId: '7' },
+    ];
+    const { sources, failures } = normalizeGithubResults(raw, {
+      idPrefix: 'm',
+      provider: 'github',
+    });
+    expect(sources).toHaveLength(2);
+    expect(sources[0].id).toBe('m:github:0');
+    expect(sources[1].id).toBe('m:github:2');
+    expect(failures).toHaveLength(1);
+    expect(failures[0].index).toBe(1);
+  });
+});

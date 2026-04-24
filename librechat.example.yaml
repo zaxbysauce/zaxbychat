@@ -240,6 +240,22 @@ actions:
 #       - -y
 #       - "mcp-obsidian"
 #       - /path/to/obsidian/vault
+#
+#   # Phase 7 PR 7.1 — GitHub as a first-class source provider.
+#   # Identity is opt-in via `kind: 'github'`. Citation emission is
+#   # additionally gated by env var `GITHUB_MCP_FIRST_CLASS=true`
+#   # (default-off). When both are set, GitHub MCP tool results
+#   # (get_file_contents, search_code, list_pull_requests, get_issue,
+#   # get_commit, search_repositories, etc.) are normalized into
+#   # CitationSource records with kindSpecific.kind: 'github'.
+#   github:
+#     kind: github
+#     type: streamable-http
+#     url: https://your-github-mcp.example.com/mcp
+#     headers:
+#       Authorization: "Bearer {{GITHUB_PAT}}"
+#       Accept: "application/vnd.github+json"
+#     timeout: 30000
 
 # Definition of custom endpoints
 endpoints:

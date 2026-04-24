@@ -3,6 +3,7 @@ import {
   citationSourcesArraySchema,
   inlineAnchorsArraySchema,
   normalizeFileResults,
+  normalizeGithubResults,
   normalizeWebResults,
   parseInlineAnchors,
 } from 'librechat-data-provider';
@@ -11,7 +12,10 @@ import type {
   InlineAnchor,
   LegAttribution,
   NormalizationFailure,
+  RawGithubResult,
 } from 'librechat-data-provider';
+import { isGithubFirstClassEnabled } from '../mcp/github/flag';
+import { parseGithubMcpResult, isCitationEmittingGithubTool } from '../mcp/github/parsers';
 
 /**
  * Server-side citation persistence helpers (Phase 5 PR 5.1 §D-P5-3).
@@ -91,6 +95,52 @@ export function ingestFileResults(params: IngestFileResultsParams): IngestResult
     ...(params.legAttribution ? { legAttribution: params.legAttribution } : {}),
   });
   const nextSources = mergeSources(params.existingSources ?? [], sources);
+  return { nextSources, added: sources, failures };
+}
+
+export interface IngestGithubResultsParams {
+  messageId: string;
+  /** Authoring tool name (already stripped of MCP delimiter); routes to a parser. */
+  toolName: string;
+  /** Raw MCP tool payload as returned by the GitHub MCP server. */
+  payload: unknown;
+  /** Citation provider label — typically the MCP server name (e.g. 'github'). */
+  provider: string;
+  legAttribution?: LegAttribution;
+  existingSources?: ReadonlyArray<CitationSource>;
+  /**
+   * Test-only override of the runtime feature flag. Production callers
+   * leave this undefined; the flag is read from `process.env`.
+   */
+  flagOverride?: boolean;
+}
+
+/**
+ * Phase 7 PR 7.1 (§D-P7-2 / §D-P7-4) — server-side ingestion peer to
+ * `ingestWebResults` / `ingestFileResults` for GitHub MCP tool output.
+ *
+ * Hard-gated by `GITHUB_MCP_FIRST_CLASS`. When the flag is off or the
+ * tool is not in the citation-emitting allowlist, the helper returns
+ * the existing source list unchanged with no failures.
+ */
+export function ingestGithubResults(params: IngestGithubResultsParams): IngestResult {
+  const enabled = params.flagOverride ?? isGithubFirstClassEnabled();
+  const existing = params.existingSources ?? [];
+  if (!enabled || !isCitationEmittingGithubTool(params.toolName)) {
+    return { nextSources: [...existing], added: [], failures: [] };
+  }
+  const rawResults: RawGithubResult[] = parseGithubMcpResult(params.toolName, params.payload);
+  if (rawResults.length === 0) {
+    return { nextSources: [...existing], added: [], failures: [] };
+  }
+  const indexBase = existing.length;
+  const idPrefix = `${params.messageId}:${indexBase}`;
+  const { sources, failures } = normalizeGithubResults(rawResults, {
+    idPrefix,
+    provider: params.provider,
+    ...(params.legAttribution ? { legAttribution: params.legAttribution } : {}),
+  });
+  const nextSources = mergeSources(existing, sources);
   return { nextSources, added: sources, failures };
 }
 

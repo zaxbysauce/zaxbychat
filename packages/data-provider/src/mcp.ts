@@ -101,6 +101,17 @@ const BaseOptionsSchema = z.object({
       }),
     )
     .optional(),
+  /**
+   * Phase 7 PR 7.1 — explicit source-provider marker for first-class
+   * integrations. When set to 'github', the server is recognized by the
+   * citation layer (`packages/api/src/mcp/github`) so tool results can
+   * be normalized to `CitationSource[]` with `kindSpecific.kind: 'github'`.
+   *
+   * Strictly opt-in: omitted on existing configs; no hostname heuristics
+   * detect this. Citation emission is additionally gated by the runtime
+   * `GITHUB_MCP_FIRST_CLASS` env-var flag (default-off).
+   */
+  kind: z.literal('github').optional(),
 });
 
 export const StdioOptionsSchema = BaseOptionsSchema.extend({
