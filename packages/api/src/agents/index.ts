@@ -22,3 +22,4 @@ export * from './validation';
 export * from './added';
 export * from './council';
 export * from './load';
+export * from './synthesis';

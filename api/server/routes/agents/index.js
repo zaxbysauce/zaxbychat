@@ -1,5 +1,10 @@
 const express = require('express');
-const { isEnabled, GenerationJobManager } = require('@librechat/api');
+const {
+  isEnabled,
+  GenerationJobManager,
+  estimateCouncilBudget,
+} = require('@librechat/api');
+const { councilAgentsSchema } = require('librechat-data-provider');
 const { logger } = require('@librechat/data-schemas');
 const {
   uaParser,
@@ -363,6 +368,61 @@ chatRouter.post('/stop-leg', async (req, res) => {
     streamId,
     legIndex,
   });
+});
+
+/**
+ * @route POST /api/agents/chat/estimate-council-budget
+ * @desc Server-authoritative pre-call token estimate for a council composition
+ *       (§D7). Client renders an informational banner only; this endpoint never
+ *       auto-blocks submission. Real billing continues to reflect actual per-leg
+ *       + synthesis usage from the runtime.
+ * @access Private + gated: returns 404 when council flag is off.
+ */
+chatRouter.post('/estimate-council-budget', async (req, res) => {
+  if (req.config?.interfaceConfig?.council !== true) {
+    return res.status(404).json({ error: 'Council mode not enabled for this deployment' });
+  }
+
+  const { primary, extras, strategy, userQuestionChars } = req.body ?? {};
+
+  if (
+    !primary ||
+    typeof primary.endpoint !== 'string' ||
+    typeof primary.model !== 'string' ||
+    primary.endpoint.length === 0 ||
+    primary.model.length === 0
+  ) {
+    return res.status(400).json({ error: 'primary.{endpoint,model} required' });
+  }
+
+  const parseExtras = councilAgentsSchema.safeParse(extras ?? []);
+  if (!parseExtras.success) {
+    return res
+      .status(400)
+      .json({ error: 'extras failed validation', details: parseExtras.error.issues });
+  }
+
+  const allowedStrategies = new Set([
+    'primary_critic',
+    'best_of_three',
+    'compare_and_synthesize',
+  ]);
+  const resolvedStrategy =
+    typeof strategy === 'string' && allowedStrategies.has(strategy)
+      ? strategy
+      : 'compare_and_synthesize';
+
+  const estimate = estimateCouncilBudget({
+    primary: { endpoint: primary.endpoint, model: primary.model },
+    extras: parseExtras.data,
+    strategy: resolvedStrategy,
+    userQuestionChars:
+      typeof userQuestionChars === 'number' && userQuestionChars >= 0
+        ? userQuestionChars
+        : undefined,
+  });
+
+  return res.status(200).json(estimate);
 });
 
 chatRouter.use('/', chat);
