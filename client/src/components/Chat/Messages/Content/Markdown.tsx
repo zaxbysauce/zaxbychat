@@ -15,10 +15,12 @@ import {
   MCPUIResourceCarousel,
 } from '~/components/MCPUIResource';
 import { Artifact, artifactPlugin } from '~/components/Artifacts/Artifact';
-import { ArtifactProvider, CodeBlockProvider } from '~/Providers';
+import { ArtifactProvider, CodeBlockProvider, useMessageContext } from '~/Providers';
 import MarkdownErrorBoundary from './MarkdownErrorBoundary';
 import { langSubset, preprocessLaTeX } from '~/utils';
 import { unicodeCitation } from '~/components/Web';
+import { sourceAnchorPlugin } from '~/components/Web/sourceAnchorPlugin';
+import InlineSourceAnchor from '~/components/Web/InlineSourceAnchor';
 import { code, a, p, img } from './MarkdownComponents';
 import store from '~/store';
 
@@ -53,15 +55,25 @@ const Markdown = memo(function Markdown({ content = '', isLatestMessage }: TCont
     [],
   );
 
-  const remarkPlugins: Pluggable[] = [
-    supersub,
-    remarkGfm,
-    remarkDirective,
-    artifactPlugin,
-    [remarkMath, { singleDollarTextMath: false }],
-    unicodeCitation,
-    mcpUIResourcePlugin,
-  ];
+  const { sources: messageSources, inlineAnchors: messageAnchors } = useMessageContext();
+
+  const remarkPlugins: Pluggable[] = useMemo(() => {
+    const plugins: Pluggable[] = [
+      supersub,
+      remarkGfm,
+      remarkDirective,
+      artifactPlugin,
+      [remarkMath, { singleDollarTextMath: false }],
+      unicodeCitation,
+      mcpUIResourcePlugin,
+    ];
+    if (messageSources && messageSources.length > 0 && messageAnchors && messageAnchors.length > 0) {
+      plugins.push(
+        sourceAnchorPlugin({ sources: messageSources, inlineAnchors: messageAnchors }),
+      );
+    }
+    return plugins;
+  }, [messageSources, messageAnchors]);
 
   if (isInitializing) {
     return (
@@ -94,6 +106,7 @@ const Markdown = memo(function Markdown({ content = '', isLatestMessage }: TCont
                 'composite-citation': CompositeCitation,
                 'mcp-ui-resource': MCPUIResource,
                 'mcp-ui-carousel': MCPUIResourceCarousel,
+                'source-anchor': InlineSourceAnchor,
               } as {
                 [nodeType: string]: React.ElementType;
               }

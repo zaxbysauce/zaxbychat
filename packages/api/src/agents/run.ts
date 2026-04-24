@@ -35,6 +35,25 @@ interface ToolSearchJsonResult {
 }
 
 /**
+ * Phase 5 §D-P5-2 citation-marker instruction. Appended to every chat-path
+ * and council-leg agent's system prompt assembly. Synthesis uses leg
+ * attribution natively (`<leg id="…">`) and does NOT receive this
+ * instruction; memory runs on a separate path and does NOT receive it.
+ *
+ * Honest-fallback behavior: when the model emits markers, they're parsed
+ * into `InlineAnchor[]`. When it doesn't, we render the Sources panel
+ * without inline anchors — never fabricated.
+ */
+const CITATION_MARKER_INSTRUCTION = [
+  'When you cite information from a web search result or a file-retrieval',
+  'result in your response, append a bracketed number like [1], [2], [3] at',
+  "the end of the claim it supports. The number is the 1-indexed position of",
+  'the source in the tool result you are citing from. Do not add a marker for',
+  'claims not supported by a specific source. Multiple citations may be used',
+  'in sequence, e.g. "[1][3]".',
+].join(' ');
+
+/**
  * Parses tool names from JSON-formatted tool_search output.
  * Format: { "found": N, "tools": [{ "name": "tool_name", ... }], ... }
  *
@@ -541,6 +560,7 @@ export async function createRun({
       systemMessage,
       agent.instructions ?? '',
       agent.additional_instructions ?? '',
+      CITATION_MARKER_INSTRUCTION,
     ]
       .join('\n')
       .trim();

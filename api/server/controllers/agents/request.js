@@ -8,7 +8,11 @@ const {
   decrementPendingRequest,
   sanitizeMessageForTransmit,
   checkAndIncrementPendingRequest,
+  extractAnchorsForPersistence,
+  validateSourcesForPersistence,
+  validateAnchorsForPersistence,
 } = require('@librechat/api');
+const { getAccumulatedSources } = require('./callbacks');
 const { disposeClient, clientRegistry, requestDataMap } = require('~/server/cleanup');
 const { handleAbortError } = require('~/server/middleware');
 const { logViolation } = require('~/cache');
@@ -660,6 +664,41 @@ const _LegacyAgentController = async (req, res, next, initializeClient, addTitle
     if (!job.abortController.signal.aborted) {
       // Create a new response object with minimal copies
       const finalResponse = { ...response };
+
+      /**
+       * Phase 5 PR 5.2: attach persisted citation sources + inline anchors
+       * to the assistant response before send+save. Sources were accumulated
+       * on req during attachment events (callbacks.js); we parse [n] markers
+       * from the final text and persist both fields on the message.
+       *
+       * Honest behavior: if no sources exist, nothing is attached (legacy
+       * pre-Phase-5 shape). If sources exist but model emitted no markers,
+       * sources persist without inlineAnchors.
+       */
+      try {
+        const accumulated = getAccumulatedSources(req, messageId);
+        if (accumulated && accumulated.length > 0) {
+          const validatedSources = validateSourcesForPersistence(accumulated);
+          const finalText = typeof finalResponse.text === 'string' ? finalResponse.text : '';
+          const { anchors, unknownMarkers } = extractAnchorsForPersistence(
+            finalText,
+            validatedSources,
+          );
+          if (unknownMarkers.length > 0) {
+            logger.debug('[citations] Unmapped [n] markers dropped', {
+              messageId,
+              unknownMarkers,
+              sourcesCount: validatedSources.length,
+            });
+          }
+          finalResponse.sources = validatedSources;
+          if (anchors.length > 0) {
+            finalResponse.inlineAnchors = validateAnchorsForPersistence(anchors);
+          }
+        }
+      } catch (err) {
+        logger.warn('[citations] Failed to attach sources/anchors to final response', err);
+      }
 
       sendEvent(res, {
         final: true,

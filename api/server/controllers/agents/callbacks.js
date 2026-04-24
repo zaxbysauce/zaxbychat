@@ -13,6 +13,8 @@ const {
   GenerationJobManager,
   writeAttachmentEvent,
   createToolExecuteHandler,
+  ingestWebResults,
+  ingestFileResults,
 } = require('@librechat/api');
 const { processFileCitations } = require('~/server/services/Files/Citations');
 const { processCodeOutput } = require('~/server/services/Files/Code/process');
@@ -312,6 +314,34 @@ function writeAttachment(res, streamId, attachment) {
  * @param {string | null} [params.streamId] - The stream ID for resumable mode, or null for standard mode.
  * @returns {ToolEndCallback} The tool end callback.
  */
+/**
+ * Phase 5 PR 5.2 — per-message accumulator for normalized citation sources.
+ * Lives on `req` so it survives across attachment events in one turn without
+ * introducing a module-level Map that could leak across requests.
+ *
+ * Shape: { sourcesByMessage: Map<messageId, CitationSource[]> }. Populated
+ * by tool-end callback below; flushed at message save time in request.js.
+ */
+function ensureCitationBuffer(req) {
+  if (!req._citationBuffer) {
+    req._citationBuffer = { sourcesByMessage: new Map() };
+  }
+  return req._citationBuffer;
+}
+
+function appendCitationSources(req, messageId, added) {
+  if (!messageId || !added || added.length === 0) {
+    return;
+  }
+  const buffer = ensureCitationBuffer(req);
+  const existing = buffer.sourcesByMessage.get(messageId) ?? [];
+  buffer.sourcesByMessage.set(messageId, [...existing, ...added]);
+}
+
+function getAccumulatedSources(req, messageId) {
+  return req?._citationBuffer?.sourcesByMessage?.get(messageId) ?? [];
+}
+
 function createToolEndCallback({ req, res, artifactPromises, streamId = null }) {
   /**
    * @type {ToolEndCallback}
@@ -340,6 +370,29 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
           if (!attachment) {
             return null;
           }
+
+          // Phase 5 ingest: normalize file sources into CitationSource[] and
+          // accumulate on req for persistence. processFileCitations already
+          // produces per-source rows with fileId/fileName/pages/relevance.
+          try {
+            const fileAttachment = attachment[Tools.file_search];
+            const rawSources = Array.isArray(fileAttachment?.sources)
+              ? fileAttachment.sources
+              : [];
+            if (rawSources.length > 0) {
+              const existing = getAccumulatedSources(req, metadata.run_id);
+              const ingest = ingestFileResults({
+                messageId: metadata.run_id,
+                provider: 'rag_api',
+                rawResults: rawSources,
+                existingSources: existing,
+              });
+              appendCitationSources(req, metadata.run_id, ingest.added);
+            }
+          } catch (err) {
+            logger.warn('[citations] Failed to ingest file sources', err);
+          }
+
           if (!streamId && !res.headersSent) {
             return attachment;
           }
@@ -384,6 +437,33 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
             conversationId: metadata.thread_id,
             [Tools.web_search]: { ...output.artifact[Tools.web_search] },
           };
+
+          // Phase 5 ingest: flatten raw web-search results (organic +
+          // topStories + references when of type 'link') into a single
+          // input array for the normalizer. Skip image references — those
+          // aren't "cited sources" in the Phase 1 contract shape.
+          try {
+            const ws = output.artifact[Tools.web_search] ?? {};
+            const organic = Array.isArray(ws.organic) ? ws.organic : [];
+            const topStories = Array.isArray(ws.topStories) ? ws.topStories : [];
+            const references = Array.isArray(ws.references)
+              ? ws.references.filter((r) => r && r.type === 'link')
+              : [];
+            const rawResults = [...organic, ...topStories, ...references];
+            if (rawResults.length > 0) {
+              const existing = getAccumulatedSources(req, metadata.run_id);
+              const ingest = ingestWebResults({
+                messageId: metadata.run_id,
+                provider: 'web_search',
+                rawResults,
+                existingSources: existing,
+              });
+              appendCitationSources(req, metadata.run_id, ingest.added);
+            }
+          } catch (err) {
+            logger.warn('[citations] Failed to ingest web sources', err);
+          }
+
           if (!streamId && !res.headersSent) {
             return attachment;
           }
@@ -763,6 +843,7 @@ module.exports = {
   agentLogHandlerObj,
   getDefaultHandlers,
   createToolEndCallback,
+  getAccumulatedSources,
   markSummarizationUsage,
   buildSummarizationHandlers,
   createResponsesToolEndCallback,
