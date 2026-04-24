@@ -52,11 +52,11 @@
 - [ ] Contract test
 
 ### Phase 6 (ragappv3 donor ports)
-- [ ] fusion.py → RRF module
-- [ ] prompt_builder.py → citation formatting
-- [ ] document_retrieval.py → retrieval filtering (with RAG API adapter)
-- [ ] schema_parser.py → SQL DDL extraction
-- [ ] query_transformer.py → step-back (no HyDE/Redis)
+- [x] fusion.py → `retrieval/fusion.ts` (RRF + recency blending; donor SHA c3e6c51)
+- [x] prompt_builder.py → `retrieval/prompt.ts` (`[S#]` citation scheme; donor SHA 1095cb7)
+- [x] document_retrieval.py → `retrieval/documents.ts` (filter + dedup + adapter-gated window; donor SHA df2301b)
+- [x] schema_parser.py → `retrieval/schema.ts` (SQL DDL extraction; donor SHA abce924)
+- [x] query_transformer.py → `retrieval/query.ts` (step-back + optional HyDE + optional Redis; donor SHA 848f382)
 
 ### Phase 7 (GitHub first-class)
 - [ ] GitHub MCP server registration
@@ -114,11 +114,14 @@
 - `client/src/utils/citations.ts` (existing Unicode anchor logic)
 
 ### Phase 6
-- `packages/api/src/retrieval/fusion.ts` (new TS port)
-- `packages/api/src/retrieval/prompt-builder.ts` (new TS port)
-- `packages/api/src/retrieval/document-retrieval.ts` (new TS port with RAG API adapter)
-- `packages/api/src/retrieval/schema-parser.ts` (new TS port)
-- `packages/api/src/retrieval/query-transformer.ts` (new TS port, step-back only)
+- `packages/api/src/retrieval/types.ts` (shared `RagSource` / `RetrievalRecord` / `VectorStoreAdapter` / `MemoryRecord` types)
+- `packages/api/src/retrieval/fusion.ts` (RRF + recency blending)
+- `packages/api/src/retrieval/prompt.ts` (`[S#]` label scheme + structured user content; independent of Phase 5 `[n]` path)
+- `packages/api/src/retrieval/documents.ts` (filter + dedup + adapter-gated window expansion)
+- `packages/api/src/retrieval/schema.ts` (SQL DDL extraction)
+- `packages/api/src/retrieval/query.ts` (step-back + optional HyDE + optional Redis; injected `ChatCompletionFn`)
+- `packages/api/src/retrieval/index.ts` (barrel)
+- `packages/api/src/index.ts` (re-exports `./retrieval`)
 
 ### Phase 7
 - `packages/api/src/mcp/MCPManager.ts` (GitHub server registration)
@@ -135,15 +138,23 @@
 
 ## Donor logic ported from ragappv3
 
-### Phase 6 ports (from /home/user/ragappv3/backend/app/)
+### Phase 6 ports (from zaxbysauce/ragappv3 @ 653d963e)
 
-| Donor module | TS module | Lines | Algorithm | Dependencies removed |
-|--------------|-----------|-------|-----------|----------------------|
-| `utils/fusion.py` | `retrieval/fusion.ts` | ~80 | RRF + recency blending | None (pure algorithm) |
-| `services/prompt_builder.py` | `retrieval/prompt-builder.ts` | ~180 | [S1] citation labels + framing | None (string ops only) |
-| `services/document_retrieval.py` | `retrieval/document-retrieval.ts` | ~400 | Filter + window + dedup | VectorStore.get_chunks_by_uid() → RAG API adapter |
-| `services/schema_parser.py` | `retrieval/schema-parser.ts` | ~100 | SQL DDL regex extraction | None (pure regex) |
-| `services/query_transformer.py` | `retrieval/query-transformer.ts` | ~150 | Step-back prompting | LRU/Redis → in-memory, LLMClient → run dispatch |
+| Donor module | Donor SHA | Donor lines | TS module | Python-only deps replaced |
+|--------------|-----------|-------------|-----------|---------------------------|
+| `backend/app/utils/fusion.py` | c3e6c51 | 1-86 | `retrieval/fusion.ts` | None (pure algorithm) |
+| `backend/app/services/prompt_builder.py` | 1095cb7 | 1-211 | `retrieval/prompt.ts` | `settings.*` globals → injected `PromptBuilderConfig`; `MemoryRecord` → port-local shape |
+| `backend/app/services/document_retrieval.py` | df2301b | 1-420 | `retrieval/documents.ts` | `settings.*` globals → injected `DocumentRetrievalConfig`; `vector_store.get_chunks_by_uid` → optional `VectorStoreAdapter` (no-op without adapter) |
+| `backend/app/services/schema_parser.py` | abce924 | 1-130 | `retrieval/schema.ts` | `pathlib.Path` → `node:fs/promises` |
+| `backend/app/services/query_transformer.py` | 848f382 | 1-252 | `retrieval/query.ts` | `settings.*` globals → injected `QueryTransformerConfig`; `LLMClient.chat_completion` → injected `ChatCompletionFn`; `redis` (Python client) → optional `RedisLike` interface; `hashlib.md5` → `node:crypto`; `OrderedDict` LRU → `Map` with size-cap cycling |
+
+**Port constraints satisfied (D-P6 locks):**
+- D-P6-1 — port-only; zero call-site integration in `/api` or existing `/packages/api`.
+- D-P6-2 — `expandWindow` requires the optional `VectorStoreAdapter`; returns input unchanged when absent.
+- D-P6-3 — Phase 5 `[n]` marker path (`CITATION_MARKER_INSTRUCTION` in `agents/run.ts`) untouched; `[S#]` lives only in the new `retrieval/prompt.ts`.
+- D-P6-4 — `QueryTransformer` takes `ChatCompletionFn` at construction; no coupling to `@librechat/agents` or any provider client.
+- D-P6-5 — fixtures synthesized inline per spec (donor inputs are deterministic data; running ragappv3 not required).
+- D-P6-6 — `MemoryRecord` is a port-local shape in `retrieval/types.ts`; no coupling to `packages/api/src/memory/`.
 
 ### Rejected donor modules (per Phase 6 scope)
 
@@ -181,11 +192,12 @@
 - [ ] Contract test: JSON shape locked
 
 ### Phase 6
-- [ ] `packages/api/src/retrieval/__tests__/fusion.test.ts` — RRF + recency blending fixtures from ragappv3 inputs
-- [ ] `packages/api/src/retrieval/__tests__/prompt-builder.test.ts` — citation formatting fixtures
-- [ ] `packages/api/src/retrieval/__tests__/document-retrieval.test.ts` — filter + dedup + window fixtures
-- [ ] `packages/api/src/retrieval/__tests__/schema-parser.test.ts` — SQL DDL extraction fixtures
-- [ ] `packages/api/src/retrieval/__tests__/query-transformer.test.ts` — step-back fixtures
+- [x] `packages/api/src/retrieval/__tests__/fusion.test.ts` — RRF formula, dedup, recency-blend neutral default, per-list weights, limit, stable sort
+- [x] `packages/api/src/retrieval/__tests__/prompt.test.ts` — `calculate_primary_count` formula, `[S#]` header, `[[MATCH: …]]` parent-window markers, anchor-best-chunk token gate, history truncation, memory block
+- [x] `packages/api/src/retrieval/__tests__/documents.test.ts` — reupload-hash detection, multi-scale dedup, group-aware dedup caps, `_distance` gating, reranker override, `indexedFileIds` filter, `noMatch` flag, adapter-injected window expansion + two-tier ordering, no-adapter no-op
+- [x] `packages/api/src/retrieval/__tests__/schema.test.ts` — VIRTUAL/IF NOT EXISTS/schema-prefix/quoted identifiers, multi-block extraction, case-insensitive, multi-line column blocks, file-not-found, 50MB cap, invalid extension rejection
+- [x] `packages/api/src/retrieval/__tests__/query.test.ts` — exact/document skip heuristic, cache hit/miss, LRU re-entry, LLM error fallback, HyDE length gate, optional Redis read/write with TTL
+- Summary: 69 tests across 5 suites, all passing (`cd packages/api && npx jest retrieval`).
 
 ### Phase 7
 - [ ] `packages/api/src/__tests__/mcp/github.test.ts` — GitHub MCP server registration
