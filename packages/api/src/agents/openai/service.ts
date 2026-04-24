@@ -20,6 +20,12 @@
  */
 import { nanoid } from 'nanoid';
 import type { Response as ServerResponse, Request } from 'express';
+import {
+  emitCapabilityNotice,
+  enforceAgentCapabilities,
+  resolveAgentCapabilities,
+  CapabilityRejection,
+} from '../capabilities';
 import type {
   ChatCompletionResponse,
   OpenAIResponseContext,
@@ -436,6 +442,37 @@ export async function createAgentChatCompletion(
       // Send initial chunk with role
       const initialChunk = createChunk(context, { role: 'assistant' });
       writeSSE(res, initialChunk);
+    }
+
+    /**
+     * Pre-Run.create capability enforcement. Resolves the agent's
+     * CapabilityResolution from the (provider, model) pair and app config's
+     * modelSpecs, then applies the policy matrix. Reject outcomes throw
+     * CapabilityRejection which the existing error handler serializes; warn
+     * outcomes mutate the initializedAgent in place (drop tools, strip
+     * response_format) and emit capability_notice SSE events.
+     */
+    {
+      const resolution = resolveAgentCapabilities(
+        initializedAgent.provider,
+        initializedAgent.model ?? '',
+        (req as unknown as { config?: Parameters<typeof resolveAgentCapabilities>[2] }).config,
+      );
+      const { notices } = enforceAgentCapabilities({
+        agent: {
+          provider: initializedAgent.provider,
+          model: initializedAgent.model ?? '',
+          tools: initializedAgent.tools,
+          model_parameters: initializedAgent.model_parameters as Record<string, unknown>,
+          attachments: initializedAgent.attachments,
+        },
+        resolution,
+      });
+      if (isStreaming && notices.length > 0) {
+        for (const notice of notices) {
+          emitCapabilityNotice(res, notice);
+        }
+      }
     }
 
     // Create handler config (only used for streaming)

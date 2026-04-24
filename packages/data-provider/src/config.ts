@@ -1717,6 +1717,26 @@ export enum ErrorTypes {
    */
   INVALID_AGENT_PROVIDER = 'invalid_agent_provider',
   /**
+   * Selected model's capabilities explicitly disallow vision (image input) but
+   * the request included one or more image attachments.
+   */
+  VISION_NOT_SUPPORTED = 'vision_not_supported',
+  /**
+   * Selected model's capabilities explicitly disallow tool calling — only
+   * raised in strict mode when enforcement escalates from drop-with-warn.
+   */
+  TOOLS_NOT_SUPPORTED = 'tools_not_supported',
+  /**
+   * Selected model's capabilities explicitly disallow file attachments
+   * (non-image) but the request included one or more non-image files.
+   */
+  FILES_NOT_SUPPORTED = 'files_not_supported',
+  /**
+   * Selected model's capabilities explicitly disallow structured output —
+   * only raised in strict mode when enforcement escalates from strip-with-warn.
+   */
+  STRUCTURED_OUTPUT_NOT_SUPPORTED = 'structured_output_not_supported',
+  /**
    * Missing model selection
    */
   MISSING_MODEL = 'missing_model',
