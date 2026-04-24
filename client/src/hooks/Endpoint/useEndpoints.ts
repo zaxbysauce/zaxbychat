@@ -7,8 +7,10 @@ import {
   PermissionTypes,
   getEndpointField,
   getConfigDefaults,
+  resolveCapabilities,
 } from 'librechat-data-provider';
 import type {
+  ModelCapabilities,
   TEndpointsConfig,
   TAssistantsMap,
   TStartupConfig,
@@ -28,11 +30,19 @@ export const useEndpoints = ({
   assistantsMap,
   endpointsConfig,
   startupConfig,
+  requireCapabilities,
 }: {
   agents?: Agent[] | null;
   assistantsMap?: TAssistantsMap;
   endpointsConfig: TEndpointsConfig;
   startupConfig: TStartupConfig | undefined;
+  /**
+   * When set, filter each endpoint's model list to exclude models whose capability
+   * resolution is `explicit` and has any listed capability set to `false`.
+   * Inferred-false and unknown models stay selectable — the selector UI surfaces
+   * their state via capability badges.
+   */
+  requireCapabilities?: Array<keyof ModelCapabilities>;
 }) => {
   const modelsQuery = useGetModelsQuery();
   const { data: endpoints = [] } = useGetEndpointsQuery({ select: mapEndpoints });
@@ -173,7 +183,19 @@ export const useEndpoints = ({
         ep !== EModelEndpoint.assistants &&
         (modelsQuery.data?.[ep]?.length ?? 0) > 0
       ) {
-        result.models = modelsQuery.data?.[ep]?.map((model) => ({
+        const specs = startupConfig?.modelSpecs?.list;
+        const filter = requireCapabilities?.length
+          ? (model: string) => {
+              const resolution = resolveCapabilities(ep, model, specs);
+              if (resolution.source !== 'explicit') {
+                return true;
+              }
+              return requireCapabilities.every((cap) => resolution.capabilities[cap]);
+            }
+          : null;
+        const rawModels = modelsQuery.data?.[ep] ?? [];
+        const kept = filter ? rawModels.filter(filter) : rawModels;
+        result.models = kept.map((model) => ({
           name: model,
           isGlobal: false,
         }));
@@ -181,7 +203,16 @@ export const useEndpoints = ({
 
       return result;
     });
-  }, [filteredEndpoints, endpointsConfig, modelsQuery.data, agents, assistants, azureAssistants]);
+  }, [
+    filteredEndpoints,
+    endpointsConfig,
+    modelsQuery.data,
+    agents,
+    assistants,
+    azureAssistants,
+    startupConfig?.modelSpecs?.list,
+    requireCapabilities,
+  ]);
 
   return {
     mappedEndpoints,

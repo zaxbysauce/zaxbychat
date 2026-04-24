@@ -1,6 +1,12 @@
 import debounce from 'lodash/debounce';
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
-import { EModelEndpoint, isAgentsEndpoint, isAssistantsEndpoint } from 'librechat-data-provider';
+import {
+  EModelEndpoint,
+  isAgentsEndpoint,
+  isAssistantsEndpoint,
+  resolveCapabilities,
+} from 'librechat-data-provider';
+import type { CapabilityResolution } from 'librechat-data-provider';
 import type * as t from 'librechat-data-provider';
 import type { Endpoint, SelectedValues } from '~/common';
 import {
@@ -31,6 +37,11 @@ type ModelSelectorContextType = {
 
   // Functions
   endpointRequiresUserKey: (endpoint: string) => boolean;
+  /**
+   * Resolves per-model capabilities. Reads modelSpecs first, then the conservative
+   * builtin inference table, then returns unknown. See data-provider capabilities.ts.
+   */
+  resolveModelCapabilities: (endpoint: string, model: string) => CapabilityResolution;
   setSelectedValues: React.Dispatch<React.SetStateAction<SelectedValues>>;
   setSearchValue: (value: string) => void;
   setEndpointSearchValue: (endpoint: string, value: string) => void;
@@ -95,6 +106,12 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     startupConfig,
     endpointsConfig,
   });
+
+  const resolveModelCapabilities = useCallback(
+    (endpoint: string, model: string) =>
+      resolveCapabilities(endpoint, model, startupConfig?.modelSpecs?.list),
+    [startupConfig?.modelSpecs?.list],
+  );
 
   const getModelDisplayName = useCallback(
     (endpoint: Endpoint, model: string): string => {
@@ -257,6 +274,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       handleSelectEndpoint,
       setEndpointSearchValue,
       endpointRequiresUserKey,
+      resolveModelCapabilities,
       setSearchValue: setDebouncedSearchValue,
       ...keyProps,
     }),
@@ -276,6 +294,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       handleSelectEndpoint,
       setEndpointSearchValue,
       endpointRequiresUserKey,
+      resolveModelCapabilities,
       setDebouncedSearchValue,
       keyProps,
     ],

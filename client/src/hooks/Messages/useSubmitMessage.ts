@@ -1,8 +1,11 @@
 import { useCallback } from 'react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { replaceSpecialVars } from 'librechat-data-provider';
+import { useToastContext } from '@librechat/client';
 import { useChatContext, useChatFormContext, useAddedChatContext } from '~/Providers';
+import useCapabilityResolution from '~/hooks/Capabilities/useCapabilityResolution';
 import { useAuthContext } from '~/hooks/AuthContext';
+import useLocalize from '~/hooks/useLocalize';
 import { mainTextareaId } from '~/common';
 import store from '~/store';
 
@@ -10,8 +13,14 @@ export default function useSubmitMessage() {
   const { user } = useAuthContext();
   const methods = useChatFormContext();
   const { conversation: addedConvo } = useAddedChatContext();
-  const { ask, index, getMessages, setMessages } = useChatContext();
+  const { ask, index, files, conversation, getMessages, setMessages } = useChatContext();
   const latestMessage = useRecoilValue(store.latestMessageFamily(index));
+  const { showToast } = useToastContext();
+  const localize = useLocalize();
+
+  const provider = conversation?.endpointType ?? conversation?.endpoint ?? undefined;
+  const model = conversation?.model ?? undefined;
+  const capabilityResolution = useCapabilityResolution(provider, model);
 
   const autoSendPrompts = useRecoilValue(store.autoSendPrompts);
   const setActivePrompt = useSetRecoilState(store.activePromptByIndex(index));
@@ -21,6 +30,23 @@ export default function useSubmitMessage() {
       if (!data) {
         return console.warn('No data provided to submitMessage');
       }
+
+      const hasImageAttachment = Array.from(files?.values() ?? []).some(
+        (f) => typeof f.type === 'string' && f.type.startsWith('image'),
+      );
+      if (
+        hasImageAttachment &&
+        capabilityResolution.source === 'explicit' &&
+        capabilityResolution.capabilities.vision === false
+      ) {
+        const displayModel = model ?? provider ?? '';
+        showToast({
+          message: localize('com_ui_capability_vision_blocked', { 0: displayModel }),
+          status: 'error',
+        });
+        return;
+      }
+
       const rootMessages = getMessages();
       const isLatestInRootMessages = rootMessages?.some(
         (message) => message.messageId === latestMessage?.messageId,
@@ -39,7 +65,20 @@ export default function useSubmitMessage() {
       );
       methods.reset();
     },
-    [ask, methods, addedConvo, setMessages, getMessages, latestMessage],
+    [
+      ask,
+      methods,
+      addedConvo,
+      setMessages,
+      getMessages,
+      latestMessage,
+      files,
+      capabilityResolution,
+      model,
+      provider,
+      showToast,
+      localize,
+    ],
   );
 
   const submitPrompt = useCallback(
