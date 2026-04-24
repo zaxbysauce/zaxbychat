@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import type { TMessageContentParts, SearchResultData, TAttachment } from 'librechat-data-provider';
 import { SearchContext } from '~/Providers';
 import MemoryArtifacts from './MemoryArtifacts';
+import SynthesisCard from './SynthesisCard';
 import Sources from '~/components/Web/Sources';
 import { EmptyText } from './Parts';
 import SiblingHeader from './SiblingHeader';
@@ -262,6 +263,10 @@ export const ParallelContentRenderer = memo(function ParallelContentRenderer({
 
       {/* Sequential content AFTER parallel sections */}
       {after.map(({ part, idx }) => renderPart(part, idx, idx === lastContentIdx))}
+
+      {/* Phase 4 council synthesis card — renders null when no council synthesis state
+          exists for this conversation, so non-council messages are visually unchanged. */}
+      {conversationId && <SynthesisCard conversationId={conversationId} />}
     </SearchContext.Provider>
   );
 });

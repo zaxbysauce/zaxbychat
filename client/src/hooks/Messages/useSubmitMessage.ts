@@ -4,6 +4,7 @@ import { replaceSpecialVars } from 'librechat-data-provider';
 import { useToastContext } from '@librechat/client';
 import { useChatContext, useChatFormContext, useAddedChatContext } from '~/Providers';
 import useCapabilityResolution from '~/hooks/Capabilities/useCapabilityResolution';
+import useCouncilState from '~/hooks/Council/useCouncilState';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useLocalize from '~/hooks/useLocalize';
 import { mainTextareaId } from '~/common';
@@ -21,6 +22,8 @@ export default function useSubmitMessage() {
   const provider = conversation?.endpointType ?? conversation?.endpoint ?? undefined;
   const model = conversation?.model ?? undefined;
   const capabilityResolution = useCapabilityResolution(provider, model);
+
+  const councilState = useCouncilState();
 
   const autoSendPrompts = useRecoilValue(store.autoSendPrompts);
   const setActivePrompt = useSetRecoilState(store.activePromptByIndex(index));
@@ -55,12 +58,24 @@ export default function useSubmitMessage() {
         setMessages([...(rootMessages || []), latestMessage]);
       }
 
+      const councilExtras =
+        provider && model
+          ? councilState.getOutboundExtras({
+              endpoint: provider,
+              model,
+              agent_id: (conversation?.agent_id as string | null | undefined) ?? null,
+            })
+          : null;
+
       ask(
         {
           text: data.text,
         },
         {
           addedConvo: addedConvo ?? undefined,
+          ...(councilExtras
+            ? { councilAgents: councilExtras, councilStrategy: councilState.state.strategy }
+            : {}),
         },
       );
       methods.reset();
@@ -78,6 +93,8 @@ export default function useSubmitMessage() {
       provider,
       showToast,
       localize,
+      councilState,
+      conversation?.agent_id,
     ],
   );
 

@@ -22,6 +22,18 @@ const buildOptions = (req, endpoint, parsedBody, endpointType) => {
   /** @type {import('librechat-data-provider').TConversation | undefined} */
   const addedConvo = req.body?.addedConvo;
 
+  /**
+   * Phase 4 council mode. The actual gate that validates shape + flag lives
+   * server-side in processCouncilAgents (§D1 precedence: councilAgents wins
+   * over addedConvo when present). Here we only forward the raw fields from
+   * the request body onto endpointOption so downstream code can inspect them.
+   */
+  const councilAgents = Array.isArray(req.body?.councilAgents)
+    ? req.body.councilAgents
+    : undefined;
+  const councilStrategy =
+    typeof req.body?.councilStrategy === 'string' ? req.body.councilStrategy : undefined;
+
   return removeNullishValues({
     spec,
     iconURL,
@@ -31,6 +43,8 @@ const buildOptions = (req, endpoint, parsedBody, endpointType) => {
     model_parameters,
     agent: agentPromise,
     addedConvo,
+    councilAgents,
+    councilStrategy,
   });
 };
 

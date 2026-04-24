@@ -26,6 +26,8 @@ import AttachFileChat from './Files/AttachFileChat';
 import FileFormChat from './Files/FileFormChat';
 import { cn, removeFocusRings } from '~/utils';
 import TextareaHeader from './TextareaHeader';
+import CouncilControls from './CouncilControls';
+import CouncilBudgetBanner from './CouncilBudgetBanner';
 import PromptsCommand from './PromptsCommand';
 import AudioRecorder from './AudioRecorder';
 import CollapseChat from './CollapseChat';
@@ -265,6 +267,8 @@ const ChatForm = memo(function ChatForm({
             )}
           >
             <TextareaHeader addedConvo={addedConvo} setAddedConvo={setAddedConvo} />
+            <CouncilControls />
+            <CouncilBudgetBanner />
             {/* WIP */}
             <EditBadges
               isEditingChatBadges={isEditingBadges}

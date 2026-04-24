@@ -6,6 +6,7 @@ import type {
   SerializableJobData,
   IEventTransport,
   UsageMetadata,
+  SynthesisState,
   AbortResult,
   IJobStore,
 } from './interfaces/IJobStore';
@@ -55,6 +56,19 @@ interface RuntimeJobState {
   earlyEventBuffer: t.ServerSentEvent[];
   hasSubscriber: boolean;
   allSubscribersLeftHandlers?: Array<(...args: unknown[]) => void>;
+  /**
+   * Phase 4 council abort hierarchy — populated only when a council-mode job
+   * is active. `abortController` above remains the parent (preserving stop-all
+   * behavior via the existing abort path). These children let stop-leg target
+   * one leg or stop-synthesis target the synthesis node without cascading.
+   *
+   * Index convention: `councilLegControllers[0]` = primary leg,
+   * `councilLegControllers[k]` = k-th extra (k in 1..2 per §D8).
+   */
+  councilLegControllers?: AbortController[];
+  councilSynthesisController?: AbortController;
+  /** Per-leg completion flags; honest `already_complete` reply for stop-leg. */
+  councilLegCompleted?: boolean[];
 }
 
 /**
@@ -507,6 +521,114 @@ class GenerationJobManagerClass {
    */
   async hasJob(streamId: string): Promise<boolean> {
     return this.jobStore.hasJob(streamId);
+  }
+
+  /**
+   * Merge a partial `SynthesisState` update into the persisted job record
+   * (Phase 4 resume protocol). Non-council jobs never invoke this.
+   *
+   * The update is shallow-merged onto any existing state so callers can
+   * record `{started: true}` then later `{emittedIndex, text}` without
+   * restating unrelated fields.
+   */
+  async setSynthesisState(
+    streamId: string,
+    partial: Partial<SynthesisState>,
+  ): Promise<void> {
+    const existing = await this.jobStore.getJob(streamId);
+    if (!existing) {
+      return;
+    }
+    const next: SynthesisState = {
+      strategy: partial.strategy ?? existing.synthesisState?.strategy ?? 'compare_and_synthesize',
+      started: partial.started ?? existing.synthesisState?.started ?? false,
+      completed: partial.completed ?? existing.synthesisState?.completed ?? false,
+      emittedIndex: partial.emittedIndex ?? existing.synthesisState?.emittedIndex ?? 0,
+      text: partial.text ?? existing.synthesisState?.text,
+      legStatus: partial.legStatus ?? existing.synthesisState?.legStatus ?? [],
+      partial: partial.partial ?? existing.synthesisState?.partial ?? false,
+    };
+    await this.jobStore.updateJob(streamId, { synthesisState: next });
+  }
+
+  /** Returns the persisted `SynthesisState` for a job, or undefined. */
+  async getSynthesisState(streamId: string): Promise<SynthesisState | undefined> {
+    const data = await this.jobStore.getJob(streamId);
+    return data?.synthesisState;
+  }
+
+  /**
+   * Registers a council abort hierarchy on the in-memory runtime for this job.
+   * The `parent` must be the already-registered `abortController` for this
+   * runtime (the one stop-all signals). Per-leg and synthesis children are
+   * stored so stop-leg / stop-synthesis endpoints can target them.
+   *
+   * Runtime-only — never persisted. A Redis-mode replica that resumes a
+   * council job does not inherit leg controllers (the original legs have
+   * either completed or been cascaded-aborted by the parent signal handoff
+   * in the replica's fresh runtime).
+   */
+  setCouncilAbortHierarchy(
+    streamId: string,
+    hierarchy: {
+      legControllers: AbortController[];
+      synthesisController: AbortController;
+    },
+  ): void {
+    const runtime = this.runtimeState.get(streamId);
+    if (!runtime) {
+      return;
+    }
+    runtime.councilLegControllers = hierarchy.legControllers;
+    runtime.councilSynthesisController = hierarchy.synthesisController;
+    runtime.councilLegCompleted = hierarchy.legControllers.map(() => false);
+  }
+
+  /** Marks a leg as completed so `stopCouncilLeg` can report `already_complete`. */
+  markCouncilLegCompleted(streamId: string, legIndex: number): void {
+    const runtime = this.runtimeState.get(streamId);
+    if (!runtime || !runtime.councilLegCompleted) {
+      return;
+    }
+    if (legIndex < 0 || legIndex >= runtime.councilLegCompleted.length) {
+      return;
+    }
+    runtime.councilLegCompleted[legIndex] = true;
+  }
+
+  /**
+   * Result of a `stopCouncilLeg` request. Kept structured so the HTTP route
+   * layer can translate each outcome into an honest status code + message.
+   */
+  stopCouncilLeg(
+    streamId: string,
+    legIndex: number,
+  ):
+    | { status: 'signaled' }
+    | { status: 'no_op'; reason: 'council_inactive' | 'unknown_leg' | 'already_complete' } {
+    const runtime = this.runtimeState.get(streamId);
+    if (!runtime || !runtime.councilLegControllers) {
+      return { status: 'no_op', reason: 'council_inactive' };
+    }
+    if (legIndex < 0 || legIndex >= runtime.councilLegControllers.length) {
+      return { status: 'no_op', reason: 'unknown_leg' };
+    }
+    if (runtime.councilLegCompleted?.[legIndex]) {
+      return { status: 'no_op', reason: 'already_complete' };
+    }
+    const controller = runtime.councilLegControllers[legIndex];
+    if (controller.signal.aborted) {
+      return { status: 'no_op', reason: 'already_complete' };
+    }
+    controller.abort('council_stop_leg');
+    return { status: 'signaled' };
+  }
+
+  /** Convenience exposed for tests: returns whether a leg has been signaled. */
+  isCouncilLegAborted(streamId: string, legIndex: number): boolean {
+    const runtime = this.runtimeState.get(streamId);
+    const controller = runtime?.councilLegControllers?.[legIndex];
+    return controller?.signal.aborted === true;
   }
 
   /**

@@ -27,6 +27,15 @@ interface LoadAddedAgentParams {
   req: { user?: { id?: string }; config?: Record<string, unknown> };
   conversation: TConversation | null;
   primaryAgent?: Agent | null;
+  /**
+   * 1-based position within the "extra legs alongside the primary" group,
+   * used to disambiguate agent IDs so each leg streams with a distinct agentId.
+   *
+   * `addedConvo` requests always use index=1 (backward-compatible default).
+   * Council-mode requests set index=1 for the first extra and index=2 for
+   * the second extra (max 2 per the Phase 4 §D8 bound).
+   */
+  index?: number;
 }
 
 /**
@@ -34,11 +43,15 @@ interface LoadAddedAgentParams {
  * Returns the agent config as a plain object, or null if invalid.
  */
 export async function loadAddedAgent(
-  { req, conversation, primaryAgent }: LoadAddedAgentParams,
+  { req, conversation, primaryAgent, index = 1 }: LoadAddedAgentParams,
   deps: LoadAddedAgentDeps,
 ): Promise<Agent | null> {
   if (!conversation) {
     return null;
+  }
+
+  if (index < 1) {
+    throw new Error(`loadAddedAgent: index must be >= 1 (got ${index})`);
   }
 
   if (conversation.agent_id && !isEphemeralAgentId(conversation.agent_id)) {
@@ -55,7 +68,7 @@ export async function loadAddedAgent(
     const agentRecord = agent as Record<string, unknown>;
     const versions = agentRecord.versions as unknown[] | undefined;
     agentRecord.version = versions ? versions.length : 0;
-    agent.id = appendAgentIdSuffix(agent.id, 1);
+    agent.id = appendAgentIdSuffix(agent.id, index);
     return agent;
   }
 
@@ -103,7 +116,7 @@ export async function loadAddedAgent(
       modelSpec?.label ??
       (endpointConfig?.modelDisplayLabel as string | undefined) ??
       '';
-    const ephemeralId = encodeEphemeralAgentId({ endpoint, model, sender, index: 1 });
+    const ephemeralId = encodeEphemeralAgentId({ endpoint, model, sender, index });
 
     return {
       id: ephemeralId,
@@ -211,7 +224,7 @@ export async function loadAddedAgent(
     modelSpec?.label ??
     (endpointConfig?.modelDisplayLabel as string | undefined) ??
     '';
-  const ephemeralId = encodeEphemeralAgentId({ endpoint, model, sender, index: 1 });
+  const ephemeralId = encodeEphemeralAgentId({ endpoint, model, sender, index });
 
   const result: Record<string, unknown> = {
     id: ephemeralId,

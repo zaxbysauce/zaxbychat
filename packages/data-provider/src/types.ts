@@ -10,6 +10,7 @@ import type {
 } from './schemas';
 import type { SettingDefinition } from './generate';
 import type { TMinimalFeedback } from './feedback';
+import type { CouncilAgentSpec, SynthesisStrategy } from './council';
 import type { ContentTypes } from './types/runs';
 import type { Agent } from './types/assistants';
 
@@ -115,6 +116,10 @@ export type TPayload = Partial<TMessage> &
     editedContent?: TEditedContent | null;
     /** Added conversation for multi-convo feature */
     addedConvo?: TConversation;
+    /** Phase 4 council mode — extras-only array (max 2); primary stays in endpointOption. */
+    councilAgents?: CouncilAgentSpec[];
+    /** Phase 4 synthesis strategy. Ignored when councilAgents is empty/undefined. */
+    councilStrategy?: SynthesisStrategy;
   };
 
 export type TEditedContent =
@@ -144,6 +149,10 @@ export type TSubmission = {
   editedContent?: TEditedContent | null;
   /** Added conversation for multi-convo feature */
   addedConvo?: TConversation;
+  /** Phase 4 council mode extras — primary leg stays on endpointOption. */
+  councilAgents?: CouncilAgentSpec[];
+  /** Phase 4 synthesis strategy. Ignored when councilAgents is empty/undefined. */
+  councilStrategy?: SynthesisStrategy;
 };
 
 export type EventSubmission = Omit<TSubmission, 'initialResponse'> & { initialResponse: TMessage };
