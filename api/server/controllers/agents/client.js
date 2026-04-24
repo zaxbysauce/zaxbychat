@@ -182,11 +182,14 @@ class AgentClient extends BaseClient {
 
   async buildMessages(messages, parentMessageId, _buildOptions, opts) {
     /** Always pass mapMethod; getMessagesForConversation applies it only to messages with addedConvo flag */
+    const councilActive = this.options.council?.active === true;
     const orderedMessages = this.constructor.getMessagesForConversation({
       messages,
       parentMessageId,
       summary: this.shouldSummarize,
-      mapMethod: createMultiAgentMapper(this.options.agent, this.agentConfigs),
+      mapMethod: createMultiAgentMapper(this.options.agent, this.agentConfigs, {
+        retainAllLegs: councilActive,
+      }),
       mapCondition: (message) => message.addedConvo === true,
     });
 

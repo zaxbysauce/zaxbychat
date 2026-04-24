@@ -23,6 +23,7 @@ const { getModelsConfig } = require('~/server/controllers/ModelController');
 const { checkPermission } = require('~/server/services/PermissionService');
 const AgentClient = require('~/server/controllers/agents/client');
 const { processAddedConvo } = require('./addedConvo');
+const { processCouncilAgents } = require('./councilAgents');
 const { logViolation } = require('~/cache');
 const db = require('~/models');
 
@@ -293,8 +294,18 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
   let userMCPAuthMap = discoveredMCPAuthMap;
   let edges = discoveredEdges;
 
-  /** Multi-Convo: Process addedConvo for parallel agent execution */
-  const { userMCPAuthMap: updatedMCPAuthMap } = await processAddedConvo({
+  /**
+   * Phase 4 Council mode: if active (flag on + valid councilAgents), load each
+   * extra leg into agentConfigs and return the full leg agent-id set.
+   *
+   * Precedence per design §D1: when councilAgents resolves to an active set,
+   * the request uses the council path; processAddedConvo is skipped for this
+   * request to avoid double-loading an addedConvo second agent.
+   *
+   * When the flag is off OR councilAgents is absent/empty, processCouncilAgents
+   * is a no-op and the existing addedConvo path continues unchanged.
+   */
+  const councilResult = await processCouncilAgents({
     req,
     res,
     loadTools,
@@ -311,8 +322,32 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     primaryAgentId: primaryConfig.id,
   });
 
-  if (updatedMCPAuthMap) {
-    userMCPAuthMap = updatedMCPAuthMap;
+  if (councilResult.userMCPAuthMap) {
+    userMCPAuthMap = councilResult.userMCPAuthMap;
+  }
+
+  if (!councilResult.active) {
+    /** Multi-Convo: Process addedConvo for parallel agent execution */
+    const { userMCPAuthMap: updatedMCPAuthMap } = await processAddedConvo({
+      req,
+      res,
+      loadTools,
+      logViolation,
+      modelsConfig,
+      requestFiles,
+      agentConfigs,
+      primaryAgent,
+      endpointOption,
+      userMCPAuthMap,
+      conversationId,
+      parentMessageId,
+      allowedProviders,
+      primaryAgentId: primaryConfig.id,
+    });
+
+    if (updatedMCPAuthMap) {
+      userMCPAuthMap = updatedMCPAuthMap;
+    }
   }
 
   for (const [agentId, config] of agentConfigs) {
@@ -374,6 +409,16 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     resendFiles: primaryConfig.resendFiles ?? true,
     maxContextTokens: primaryConfig.maxContextTokens,
     endpoint: isEphemeralAgentId(primaryConfig.id) ? primaryConfig.endpoint : EModelEndpoint.agents,
+    council: councilResult.active
+      ? {
+          active: true,
+          legAgentIds: councilResult.legAgentIds,
+          strategy:
+            endpointOption?.councilStrategy ||
+            endpointOption?.council_strategy ||
+            'compare_and_synthesize',
+        }
+      : { active: false, legAgentIds: [primaryConfig.id], strategy: 'compare_and_synthesize' },
   });
 
   if (streamId) {
