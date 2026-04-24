@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { v4 } from 'uuid';
 import { SSE } from 'sse.js';
-import { useSetRecoilState } from 'recoil';
+import { useSetRecoilState, useRecoilCallback } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import { request, createPayload, removeNullishValues } from 'librechat-data-provider';
 import type { TMessage, TPayload, TSubmission, EventSubmission } from 'librechat-data-provider';
 import type { EventHandlerParams } from './useEventHandlers';
 import type { TResData } from '~/common';
+import type { SynthesisLiveState } from '~/store/council';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useEventHandlers from './useEventHandlers';
+import { synthesisLiveStateFamily } from '~/store/council';
 import { clearAllDrafts } from '~/utils';
 import store from '~/store';
 
@@ -46,6 +48,17 @@ export default function useSSE(
   } = chatHelpers;
 
   const { showToast } = useToastContext();
+
+  const setSynthesisLiveState = useRecoilCallback(
+    ({ set }) =>
+      (
+        conversationId: string,
+        updater: (prev: SynthesisLiveState | null) => SynthesisLiveState,
+      ) => {
+        set(synthesisLiveStateFamily(conversationId), updater);
+      },
+    [],
+  );
 
   const {
     clearStepMaps,
@@ -115,6 +128,103 @@ export default function useSSE(
         });
       } catch (error) {
         console.error('Failed to handle capability_notice SSE event:', error);
+      }
+    });
+
+    /**
+     * Phase 4 synthesis stream listeners. Each event writes into
+     * synthesisLiveStateFamily(conversationId) so the SynthesisCard renders
+     * the live synthesis state. Bounded in scope to council runs — no event
+     * fires when council is inactive, so non-council turns stay unaffected.
+     */
+    const conversationId = submission.conversation?.conversationId ?? '';
+
+    sse.addEventListener('synthesis_start', (e: MessageEvent) => {
+      if (!conversationId) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(e.data);
+        setSynthesisLiveState(conversationId, () => ({
+          conversationId,
+          strategy: payload.strategy ?? 'compare_and_synthesize',
+          legStatus: Array.isArray(payload.legStatus) ? payload.legStatus : [],
+          text: '',
+          status: 'streaming',
+          partial: payload.partial === true,
+        }));
+      } catch (error) {
+        console.error('Failed to handle synthesis_start SSE event:', error);
+      }
+    });
+
+    sse.addEventListener('synthesis_delta', (e: MessageEvent) => {
+      if (!conversationId) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(e.data);
+        const chunk = typeof payload.text === 'string' ? payload.text : '';
+        if (!chunk) {
+          return;
+        }
+        setSynthesisLiveState(conversationId, (prev) =>
+          prev
+            ? { ...prev, text: prev.text + chunk, status: 'streaming' }
+            : {
+                conversationId,
+                strategy: 'compare_and_synthesize',
+                legStatus: [],
+                text: chunk,
+                status: 'streaming',
+                partial: false,
+              },
+        );
+      } catch (error) {
+        console.error('Failed to handle synthesis_delta SSE event:', error);
+      }
+    });
+
+    sse.addEventListener('synthesis_complete', (e: MessageEvent) => {
+      if (!conversationId) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(e.data);
+        setSynthesisLiveState(conversationId, (prev) => ({
+          conversationId,
+          strategy: prev?.strategy ?? 'compare_and_synthesize',
+          legStatus: Array.isArray(payload.legStatus)
+            ? payload.legStatus
+            : prev?.legStatus ?? [],
+          text: typeof payload.text === 'string' ? payload.text : prev?.text ?? '',
+          status: 'complete',
+          partial: payload.partial === true,
+        }));
+      } catch (error) {
+        console.error('Failed to handle synthesis_complete SSE event:', error);
+      }
+    });
+
+    sse.addEventListener('synthesis_skipped_all_failed', (e: MessageEvent) => {
+      if (!conversationId) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(e.data);
+        setSynthesisLiveState(conversationId, () => ({
+          conversationId,
+          strategy: 'compare_and_synthesize',
+          legStatus: Array.isArray(payload.legStatus) ? payload.legStatus : [],
+          text: '',
+          status: 'skipped_all_failed',
+          partial: false,
+        }));
+      } catch (error) {
+        console.error(
+          'Failed to handle synthesis_skipped_all_failed SSE event:',
+          error,
+        );
       }
     });
 

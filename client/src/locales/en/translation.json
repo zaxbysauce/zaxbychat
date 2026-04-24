@@ -817,6 +817,8 @@
   "com_ui_capability_vision_blocked": "{{0}} does not support image input. Remove the image or choose a different model.",
   "com_ui_capability_vision_unverified": "{{0}} may not support image input. Send anyway?",
   "com_ui_council_add_extra": "Add another model",
+  "com_ui_council_budget_approximate": "approximate",
+  "com_ui_council_budget_banner": "≈ {{0}} tokens estimated ({{1}} legs + synthesis)",
   "com_ui_council_controls": "Council mode controls",
   "com_ui_council_enable": "Enable council (multi-model)",
   "com_ui_council_extras_empty": "Select up to 2 additional models to run in parallel.",
