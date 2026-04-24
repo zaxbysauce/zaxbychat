@@ -28,6 +28,9 @@ const {
   filterMalformedContentParts,
   countFormattedMessageTokens,
   hydrateMissingIndexTokenCounts,
+  executeCouncilPhase2,
+  prepareCouncilAbortHierarchy,
+  buildLegIdentities,
 } = require('@librechat/api');
 const {
   Callback,
@@ -715,9 +718,31 @@ class AgentClient extends BaseClient {
     const appConfig = this.options.req.config;
     const balanceConfig = getBalanceConfig(appConfig);
     const transactionsConfig = getTransactionsConfig(appConfig);
+    /**
+     * Phase 4 council abort hierarchy — only populated when this.options.council.active.
+     * parent = the existing abortController (stop-all continues to work unchanged via
+     * the existing abort route). Per-leg children and the synthesis child are stored
+     * on the GenerationJobManager runtime so stop-leg / stop-synthesis can target them.
+     * When council is inactive, this is null and behavior is identical to pre-Phase-4.
+     */
+    let councilAbortHierarchy = null;
     try {
       if (!abortController) {
         abortController = new AbortController();
+      }
+
+      const councilActive = this.options.council?.active === true;
+      if (councilActive) {
+        councilAbortHierarchy = prepareCouncilAbortHierarchy({
+          parentController: abortController,
+          legCount: this.options.council.legAgentIds.length,
+        });
+        if (this.streamId) {
+          GenerationJobManager.setCouncilAbortHierarchy(this.streamId, {
+            legControllers: councilAbortHierarchy.legControllers,
+            synthesisController: councilAbortHierarchy.synthesisController,
+          });
+        }
       }
 
       /** @type {AppConfig['endpoints']['agents']} */
@@ -871,6 +896,67 @@ class AgentClient extends BaseClient {
 
       const hideSequentialOutputs = config.configurable.hide_sequential_outputs;
       await runAgents(initialMessages);
+
+      /**
+       * Phase 4 council phase 2 — synthesis.
+       *
+       * Runs only when council is active AND phase 1 completed without a
+       * cascading abort. executeCouncilPhase2 handles every §D5 branch
+       * internally and is a no-op when council is inactive, so guarding on
+       * councilAbortHierarchy here is sufficient.
+       *
+       * Synthesis usage is appended to this.collectedUsage with
+       * agentId='__synthesis__' so the existing recordCollectedUsage call
+       * in the finally block naturally writes the (K+1)-th transaction row.
+       */
+      if (councilAbortHierarchy && !abortController.signal.aborted) {
+        const councilInput = this.options.council ?? null;
+        const primaryAgentId = this.options.agent?.id;
+        const primaryModel =
+          this.options.agent?.model ??
+          this.options.agent?.model_parameters?.model ??
+          'unknown';
+        const legIdentities = buildLegIdentities({
+          legAgentIds: councilInput.legAgentIds,
+          primaryAgentId,
+          primaryModel,
+          agentConfigs: this.agentConfigs,
+        });
+        const userQuestion =
+          (payload && payload.text) ||
+          (Array.isArray(initialMessages) && initialMessages.length
+            ? String(initialMessages[initialMessages.length - 1]?.content ?? '')
+            : '');
+        try {
+          await executeCouncilPhase2({
+            res: this.options.res,
+            runId: this.responseMessageId || this.conversationId,
+            streamId: this.streamId,
+            synthesisSignal: councilAbortHierarchy.synthesisSignal,
+            llmConfig: this.options.agent?.model_parameters ?? {},
+            council: {
+              active: councilInput.active === true,
+              legAgentIds: councilInput.legAgentIds || [],
+              legIdentities,
+              strategy: councilInput.strategy,
+            },
+            userQuestion,
+            contentParts: this.contentParts,
+            collectedUsage: this.collectedUsage,
+            setSynthesisState: async (partial) => {
+              if (!this.streamId) {
+                return;
+              }
+              await GenerationJobManager.setSynthesisState(this.streamId, partial);
+            },
+          });
+        } catch (err) {
+          logger.error(
+            '[api/server/controllers/agents/client.js #chatCompletion] Council phase-2 synthesis failed',
+            err,
+          );
+        }
+      }
 
       /** @deprecated Agent Chain */
       if (hideSequentialOutputs) {
