@@ -190,3 +190,43 @@ Rollback = flip `interface.council: false` in `librechat.yaml` + restart. No cod
 4. **4.3** — client UI (toggle, strategy picker, ≤3-model picker, per-agent columns, synthesis card, per-leg stop buttons, token-budget banner, i18n keys).
 
 Pre-4.1 verifications **V4a–V4d** (see migration notes) must run green before 4.1 opens. V4b or V4c blockers → stop and report per the escalation rule.
+
+---
+
+## V4 verification results (2026-04-24)
+
+All four verifications resolved. No structural blockers.
+
+### V4a — `addedConvo` runtime shape
+
+Confirmed fields consumed by `loadAddedAgent()` (`packages/api/src/agents/added.ts:36-215`):
+- Loaded-agent path (`conversation.agent_id` present & non-ephemeral): only `agent_id` is consumed.
+- Ephemeral-agent path: `endpoint`, `model`, `promptPrefix`, `spec`, `modelLabel`, `ephemeralAgent: {mcp, execute_code, file_search, web_search, artifacts}` are consumed.
+
+**Implication for D8.** `CouncilAgentSpec = {endpoint, model, agent_id?}` is deliberately narrower than `addedConvo`. Council-mode extras intentionally do NOT carry `promptPrefix` / `spec` / `ephemeralAgent` tool-toggle overrides. Users who need per-leg tool/prompt customization use `addedConvo` (unchanged under D1). This narrowness is a locked feature of this phase, not a gap.
+
+### V4b — synthesis-as-graph-node additivity (blocker check)
+
+**Verdict: (A) additively implementable. No fork.**
+
+- `graphConfig.edges` already supports many-to-one: `from: ['leg1', 'leg2', ...], to: 'synthesis'` is valid (`packages/api/src/agents/edges.ts:17-30`).
+- Custom handlers are already the extension point — `createOpenAIHandlers()` merges `customHandlers: Record<string, EventHandler>` (`openai/handlers.ts:408-428`). Existing `ON_SUMMARIZE_START/DELTA/COMPLETE` events (`summarization.e2e.test.ts:115-130`) prove the same pattern works for post-parallel nodes.
+- Part types are not hardcoded in the package — `OpenAIMessageDeltaHandler` forwards `part.type` verbatim (`openai/handlers.ts:249-256`), so a `{type: 'synthesis'}` part streams cleanly.
+
+### V4c — per-leg transaction row reach (blocker check)
+
+**Verdict: (A) naturally supported. Small rewiring required.**
+
+- `recordCollectedUsage()` already loops over `collectedUsage: UsageMetadata[]` (`packages/api/src/agents/usage.ts:78`). Each iteration builds its own `TxMetadata` with its own `model`.
+- `bulkWriteTransactions()` calls `insertMany(plainDocs)` with exactly one `doc` per entry (`transactions.ts:324-347`). No pre-aggregation.
+- **Missing link:** `UsageMetadata` / `TxMetadata` / `TransactionData` have no `agentId` field today. Adding `agentId?: string` to these three types is part of PR 4.2's scope. ~5 types, ~10 lines.
+
+### V4d — per-agent streaming metadata
+
+- `agentId` on streamed content parts is driven by each agent's unique `id` in `agentConfigs` Map (`processAddedConvo.js:126`).
+- IDs are disambiguated via `appendAgentIdSuffix(agentId, index)` (loaded agents) or `encodeEphemeralAgentId({endpoint, model, sender, index})` (ephemeral) — both take an explicit `index` parameter.
+- **Council mode uses `index: 1` for the first extra leg and `index: 2` for the second.** This is the only change required to get distinct `agentId`s through — no new metadata plumbing.
+- `groupId` is assigned by `@librechat/agents` per request; identical for all legs in one request so `createMultiAgentMapper` can group them (`client.ts:350-361`).
+- Client `ParallelContent.tsx:47-121` already generates columns dynamically — no 2-leg hardcoding. Ready for ≥3.
+
+No structural blockers. Proceeding to PR 4.1.
