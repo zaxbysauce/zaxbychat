@@ -127,6 +127,7 @@ export async function recordCollectedUsage(
         endpointTokenConfig,
         context: usageContext,
         model: usage.model ?? model,
+        ...(usage.agentId != null ? { agentId: usage.agentId } : {}),
       };
 
       if (useBulk) {

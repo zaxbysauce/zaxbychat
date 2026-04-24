@@ -13,6 +13,7 @@ export * from './parsers';
 export * from './generate';
 export * from './models';
 export * from './capabilities';
+export * from './council';
 /* mcp */
 export * from './mcp';
 /* RBAC */

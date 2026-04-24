@@ -28,6 +28,7 @@ export default {
     '~/(.*)': '<rootDir>/src/$1',
     '^@librechat/agents$': '<rootDir>/src/__mocks__/@librechat__agents.ts',
     '^@librechat/data-schemas$': '<rootDir>/src/__mocks__/@librechat__data-schemas.ts',
+    '^ai-tokenizer$': '<rootDir>/src/__mocks__/ai-tokenizer.ts',
   },
   // coverageThreshold: {
   //   global: {

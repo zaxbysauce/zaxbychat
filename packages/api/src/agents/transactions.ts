@@ -33,6 +33,7 @@ interface BaseTxData {
   endpointTokenConfig?: EndpointTokenConfig;
   balance?: Partial<TCustomConfig['balance']> | null;
   transactions?: Partial<TTransactionsConfig>;
+  agentId?: string;
 }
 
 interface StandardTxData extends BaseTxData {
@@ -82,6 +83,12 @@ export interface TxMetadata {
   balance?: Partial<TCustomConfig['balance']> | null;
   transactions?: Partial<TTransactionsConfig>;
   endpointTokenConfig?: EndpointTokenConfig;
+  /**
+   * Phase 4 council-mode: identifies which leg (or `__synthesis__`) produced
+   * the tokens. Flows into the persisted `TransactionData.agentId` so each
+   * council leg and the synthesis node bill as distinct rows.
+   */
+  agentId?: string;
 }
 
 export interface BulkWriteDeps {
