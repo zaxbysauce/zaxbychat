@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { v4 } from 'uuid';
 import { SSE } from 'sse.js';
 import { useSetRecoilState } from 'recoil';
+import { useToastContext } from '@librechat/client';
 import { request, createPayload, removeNullishValues } from 'librechat-data-provider';
 import type { TMessage, TPayload, TSubmission, EventSubmission } from 'librechat-data-provider';
 import type { EventHandlerParams } from './useEventHandlers';
@@ -43,6 +44,8 @@ export default function useSSE(
     newConversation,
     resetLatestMessage,
   } = chatHelpers;
+
+  const { showToast } = useToastContext();
 
   const {
     clearStepMaps,
@@ -97,6 +100,21 @@ export default function useSSE(
         attachmentHandler({ data, submission: submission as EventSubmission });
       } catch (error) {
         console.error(error);
+      }
+    });
+
+    sse.addEventListener('capability_notice', (e: MessageEvent) => {
+      try {
+        const notice = JSON.parse(e.data);
+        showToast({
+          message:
+            typeof notice?.message === 'string'
+              ? notice.message
+              : 'Capability notice received',
+          status: notice?.severity === 'info' ? 'info' : 'warning',
+        });
+      } catch (error) {
+        console.error('Failed to handle capability_notice SSE event:', error);
       }
     });
 

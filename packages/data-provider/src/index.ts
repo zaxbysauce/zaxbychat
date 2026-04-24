@@ -12,6 +12,7 @@ export * from './parsers';
 /* custom/dynamic configurations  */
 export * from './generate';
 export * from './models';
+export * from './capabilities';
 /* mcp */
 export * from './mcp';
 /* RBAC */

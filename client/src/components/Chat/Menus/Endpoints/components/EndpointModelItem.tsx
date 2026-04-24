@@ -6,6 +6,7 @@ import type { Endpoint } from '~/common';
 import { useFavorites, useLocalize, useIsActiveItem } from '~/hooks';
 import { useModelSelectorContext } from '../ModelSelectorContext';
 import { CustomMenuItem as MenuItem } from '../CustomMenu';
+import { CapabilityBadge } from './CapabilityBadge';
 import { cn } from '~/utils';
 
 interface EndpointModelItemProps {
@@ -15,7 +16,8 @@ interface EndpointModelItemProps {
 
 export function EndpointModelItem({ modelId, endpoint }: EndpointModelItemProps) {
   const localize = useLocalize();
-  const { handleSelectModel, selectedValues } = useModelSelectorContext();
+  const { handleSelectModel, selectedValues, resolveModelCapabilities } =
+    useModelSelectorContext();
   const {
     endpoint: selectedEndpoint,
     model: selectedModel,
@@ -107,6 +109,11 @@ export function EndpointModelItem({ modelId, endpoint }: EndpointModelItemProps)
         {renderAvatar()}
         <span className="truncate">{modelName}</span>
         {isGlobal && <EarthIcon className="ml-1 size-4 text-surface-submit" />}
+        {modelId &&
+          !isAgentsEndpoint(endpoint.value) &&
+          !isAssistantsEndpoint(endpoint.value) && (
+            <CapabilityBadge resolution={resolveModelCapabilities(endpoint.value, modelId)} />
+          )}
       </div>
       <button
         type="button"

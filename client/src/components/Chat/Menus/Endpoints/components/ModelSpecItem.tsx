@@ -1,10 +1,12 @@
 import React from 'react';
 import { VisuallyHidden } from '@ariakit/react';
 import { CheckCircle2, Pin, PinOff } from 'lucide-react';
+import { isAgentsEndpoint, isAssistantsEndpoint } from 'librechat-data-provider';
 import type { TModelSpec } from 'librechat-data-provider';
 import { useFavorites, useLocalize, useIsActiveItem } from '~/hooks';
 import { useModelSelectorContext } from '../ModelSelectorContext';
 import { CustomMenuItem as MenuItem } from '../CustomMenu';
+import { CapabilityBadge } from './CapabilityBadge';
 import SpecIcon from './SpecIcon';
 import { cn } from '~/utils';
 
@@ -15,9 +17,18 @@ interface ModelSpecItemProps {
 
 export function ModelSpecItem({ spec, isSelected }: ModelSpecItemProps) {
   const localize = useLocalize();
-  const { handleSelectSpec, endpointsConfig } = useModelSelectorContext();
+  const { handleSelectSpec, endpointsConfig, resolveModelCapabilities } =
+    useModelSelectorContext();
   const { isFavoriteSpec, toggleFavoriteSpec } = useFavorites();
   const { showIconInMenu = true } = spec;
+
+  const specEndpoint = spec.preset?.endpoint;
+  const specModel = spec.preset?.model;
+  const showCapabilityBadge =
+    typeof specEndpoint === 'string' &&
+    typeof specModel === 'string' &&
+    !isAgentsEndpoint(specEndpoint) &&
+    !isAssistantsEndpoint(specEndpoint);
 
   const { ref: itemRef, isActive } = useIsActiveItem<HTMLDivElement>();
 
@@ -47,7 +58,14 @@ export function ModelSpecItem({ spec, isSelected }: ModelSpecItemProps) {
           </div>
         )}
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate text-left">{spec.label}</span>
+          <div className="flex items-center gap-1">
+            <span className="truncate text-left">{spec.label}</span>
+            {showCapabilityBadge && (
+              <CapabilityBadge
+                resolution={resolveModelCapabilities(specEndpoint!, specModel!)}
+              />
+            )}
+          </div>
           {spec.description && (
             <span className="break-words text-xs font-normal">{spec.description}</span>
           )}
