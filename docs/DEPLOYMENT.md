@@ -10,6 +10,12 @@ This document covers what bundled services exist, where to register
 external inference endpoints, and the small set of feature surfaces
 introduced by the Perplexity-style migration (Phases 1–8).
 
+> **Looking for a step-by-step Docker walkthrough?**
+> See [`QUICKSTART.windows.md`](./QUICKSTART.windows.md) for a
+> Windows 11 + Docker Desktop quickstart. The same `docker compose`
+> commands apply to macOS and Linux; the Windows guide additionally
+> covers WSL 2 and PowerShell-specific setup.
+
 ---
 
 ## What ships in the container
