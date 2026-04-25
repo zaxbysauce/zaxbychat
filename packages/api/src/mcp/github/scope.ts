@@ -1,10 +1,11 @@
 /**
- * Phase 7 PR 7.2 — GitHub MCP tool-exposure scoping (D-P7-7 / D-P7-8 locks).
+ * GitHub MCP tool-exposure scoping.
  *
  * Hard-capped allowlist of tools agents may invoke when an MCP server
- * carries `kind: 'github'` and the runtime feature flag is on. This
- * layer is intentionally separate from `api/server/controllers/agents/v1.js`
- * `filterAuthorizedTools` (PR 7.2 must not reuse that layer).
+ * carries `kind: 'github'`. This layer is intentionally separate from
+ * `api/server/controllers/agents/v1.js` `filterAuthorizedTools` — the
+ * latter validates registry membership, the former enforces the
+ * GitHub-specific cap.
  *
  * Allowlist composition:
  *   - Citation-emitting set (PR 7.1 `parsers.ts`): `get_file_contents`,
@@ -43,7 +44,6 @@ export function isGithubMcpAllowedTool(toolName: string): boolean {
 
 export interface ShouldDropForGithubScopeArgs {
   toolKey: string;
-  flagEnabled: boolean;
   getServerConfig: (serverName: string) => MCPOptions | undefined;
 }
 
@@ -52,14 +52,12 @@ export interface ShouldDropForGithubScopeArgs {
  * stripped from the agent's exposed tool list.
  *
  * Behavior matrix:
- *   - flag OFF                                            → false (no-op; preserves pre-PR-7.1 behavior).
- *   - flag ON, non-MCP tool key                           → false (untouched).
- *   - flag ON, MCP tool, non-`kind:'github'` server       → false (untouched; generic MCP semantics).
- *   - flag ON, `kind:'github'` server, allowlisted tool   → false (kept).
- *   - flag ON, `kind:'github'` server, non-allowlisted    → TRUE  (dropped).
+ *   - non-MCP tool key                           → false (untouched).
+ *   - MCP tool, non-`kind:'github'` server       → false (untouched; generic MCP semantics).
+ *   - `kind:'github'` server, allowlisted tool   → false (kept).
+ *   - `kind:'github'` server, non-allowlisted    → TRUE  (dropped).
  */
 export function shouldDropForGithubScope(args: ShouldDropForGithubScopeArgs): boolean {
-  if (!args.flagEnabled) return false;
   const parsed = parseGithubMcpToolKey(args.toolKey);
   if (!parsed) return false;
   const cfg = args.getServerConfig(parsed.serverName);
@@ -71,7 +69,6 @@ export interface ApplyGithubMcpScopeArgs<T> {
   items: ReadonlyArray<T>;
   getName: (item: T) => string | undefined;
   getServerConfig: (serverName: string) => MCPOptions | undefined;
-  flagEnabled: boolean;
 }
 
 /**
@@ -85,7 +82,6 @@ export interface ApplyGithubMcpScopeArgs<T> {
  * stubs) without duplicating the filter logic.
  */
 export function applyGithubMcpScope<T>(args: ApplyGithubMcpScopeArgs<T>): T[] {
-  if (!args.flagEnabled) return [...args.items];
   const kept: T[] = [];
   for (const item of args.items) {
     const name = args.getName(item);
@@ -95,7 +91,6 @@ export function applyGithubMcpScope<T>(args: ApplyGithubMcpScopeArgs<T>): T[] {
     }
     const drop = shouldDropForGithubScope({
       toolKey: name,
-      flagEnabled: true,
       getServerConfig: args.getServerConfig,
     });
     if (!drop) kept.push(item);

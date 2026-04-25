@@ -2,7 +2,7 @@ import React, { memo, useState } from 'react';
 import { Github } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import { useRecoilState } from 'recoil';
-import { useGithubFirstClassEnabled, useGithubMcpServers } from '~/hooks/MCP/useGithubFirstClass';
+import { useGithubMcpServers } from '~/hooks/MCP/useGithubFirstClass';
 import { githubContextSelectionState } from '~/store/githubContext';
 import GitHubContextDialog from './GitHubContextDialog';
 import GitHubContextChip from './GitHubContextChip';
@@ -10,24 +10,21 @@ import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
 /**
- * Phase 7 PR 7.2 — composer entry point for the GitHub context picker.
+ * Composer entry point for the GitHub context picker.
  *
  * Sibling of `<MCPSelect />` in the chat input badge row. Visibility
- * is gated on:
- *   - `githubFirstClassEnabled` mirrored from startup config (default-off);
- *   - at least one MCP server with `kind: 'github'` configured.
- *
- * When both conditions are met, renders a small button + (when set)
- * the selected-context chip. Clicking opens the modal picker.
+ * is gated on the presence of at least one MCP server with
+ * `kind: 'github'` configured. Clicking opens the modal picker; the
+ * selected-context chip renders inline when the recoil atom holds a
+ * value.
  */
 function GitHubContextButton() {
   const localize = useLocalize();
-  const enabled = useGithubFirstClassEnabled();
   const githubServers = useGithubMcpServers();
   const [open, setOpen] = useState(false);
   const [selection, setSelection] = useRecoilState(githubContextSelectionState);
 
-  if (!enabled || githubServers.length === 0) return null;
+  if (githubServers.length === 0) return null;
 
   return (
     <>

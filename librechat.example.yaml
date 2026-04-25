@@ -32,6 +32,10 @@ interface:
   # Note: This setting does not disable the Agents File Search Capability.
   # To disable the Agents Capability, see the Agents Endpoint configuration instead.
   fileSearch: true
+  # Council mode — surface the "Council" composer toggle that lets a user
+  # send a single prompt to up to three models in parallel and view a
+  # synthesized answer. Default is off; set true to expose the UI.
+  # council: true
   # Privacy policy settings
   privacyPolicy:
     externalUrl: 'https://librechat.ai/privacy-policy'
@@ -241,13 +245,14 @@ actions:
 #       - "mcp-obsidian"
 #       - /path/to/obsidian/vault
 #
-#   # Phase 7 PR 7.1 — GitHub as a first-class source provider.
-#   # Identity is opt-in via `kind: 'github'`. Citation emission is
-#   # additionally gated by env var `GITHUB_MCP_FIRST_CLASS=true`
-#   # (default-off). When both are set, GitHub MCP tool results
-#   # (get_file_contents, search_code, list_pull_requests, get_issue,
-#   # get_commit, search_repositories, etc.) are normalized into
-#   # CitationSource records with kindSpecific.kind: 'github'.
+#   # GitHub as a first-class source provider.
+#   # Strictly opt-in via `kind: 'github'`. When set, GitHub MCP tool
+#   # results (get_file_contents, search_code, list_pull_requests,
+#   # get_issue, get_commit, search_repositories, …) are normalized
+#   # into CitationSource records with kindSpecific.kind: 'github',
+#   # and the agent's exposed tool list is hard-capped to a read-only
+#   # allowlist. The chat composer surfaces a "GitHub Context" picker
+#   # whenever any kind:'github' server is present.
 #   github:
 #     kind: github
 #     type: streamable-http
@@ -499,11 +504,16 @@ endpoints:
 # - Can be a URL or a built-in endpoint key (e.g., "openAI", "anthropic", "groq")
 # modelSpecs:
 #   list:
-#     # Example 1: Nested under an endpoint (grouped with openAI endpoint)
+#     # Example 1: Nested under an endpoint (grouped with openAI endpoint).
+#     # `capabilities` declares the per-spec feature set used by the
+#     # capability-aware UI and the server-side pre-Run gate. Available
+#     # values: "vision", "tools", "structured_output", "deferred_tools",
+#     # "execute_code", "web_search", "file_search", "actions", "council".
 #     - name: "gpt-4o"
 #       label: "GPT-4 Optimized"
 #       description: "Most capable GPT-4 model with multimodal support"
 #       group: "openAI"  # String value matching the endpoint name
+#       capabilities: ["vision", "tools", "structured_output"]
 #       preset:
 #         endpoint: "openAI"
 #         model: "gpt-4o"

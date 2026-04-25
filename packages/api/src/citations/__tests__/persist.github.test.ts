@@ -1,27 +1,15 @@
 /**
- * Phase 7 PR 7.1 — `ingestGithubResults` tests.
+ * `ingestGithubResults` tests.
  *
- * Mirrors the Phase 5 web/file ingest test surface: gating, dedup
- * across calls, leg-attribution threading, contract validity, and
- * malformed-entry handling. Honest-shape: unknown tools / disabled
- * flag yield an unchanged source list with no failures.
+ * Mirrors the Phase 5 web/file ingest test surface: dedup across calls,
+ * leg-attribution threading, contract validity, and malformed-entry
+ * handling. Honest-shape: unknown tools yield an unchanged source list
+ * with no failures.
  */
 import { ingestGithubResults } from '../persist';
 import type { CitationSource } from 'librechat-data-provider';
 
 describe('ingestGithubResults', () => {
-  it('is a no-op when the feature flag is off', () => {
-    const out = ingestGithubResults({
-      messageId: 'msg-1',
-      toolName: 'get_file_contents',
-      payload: { repo: 'a/b', path: 'x' },
-      provider: 'github',
-      flagOverride: false,
-    });
-    expect(out.added).toEqual([]);
-    expect(out.nextSources).toEqual([]);
-    expect(out.failures).toEqual([]);
-  });
 
   it('is a no-op for non-citation-emitting tools', () => {
     const out = ingestGithubResults({
@@ -29,12 +17,11 @@ describe('ingestGithubResults', () => {
       toolName: 'create_issue',
       payload: { repository: { full_name: 'a/b' }, number: 1, title: 't' },
       provider: 'github',
-      flagOverride: true,
     });
     expect(out.added).toEqual([]);
   });
 
-  it('emits a citation when flag is on and the tool is allowlisted', () => {
+  it('emits a citation when the tool is allowlisted', () => {
     const out = ingestGithubResults({
       messageId: 'msg-1',
       toolName: 'get_file_contents',
@@ -45,7 +32,6 @@ describe('ingestGithubResults', () => {
         html_url: 'https://github.com/a/b/blob/abc1234/README.md',
       },
       provider: 'github',
-      flagOverride: true,
     });
     expect(out.added).toHaveLength(1);
     expect(out.added[0].id).toBe('msg-1:0:github:0');
@@ -79,7 +65,6 @@ describe('ingestGithubResults', () => {
       toolName: 'get_file_contents',
       payload: { repo: 'a/b', path: 'x', sha: 's' },
       provider: 'github',
-      flagOverride: true,
       existingSources: existing,
     });
     expect(out.nextSources[0].id).toBe('msg-1:0:web:0');
@@ -92,7 +77,6 @@ describe('ingestGithubResults', () => {
       toolName: 'get_file_contents',
       payload: { repo: 'a/b', path: 'x', sha: 's' },
       provider: 'github',
-      flagOverride: true,
       legAttribution: { legId: 'leg-2', role: 'direct' },
     });
     expect(out.added[0].legAttribution).toEqual({ legId: 'leg-2', role: 'direct' });
@@ -113,7 +97,6 @@ describe('ingestGithubResults', () => {
       toolName: 'get_file_contents',
       payload: { not: 'parseable' },
       provider: 'github',
-      flagOverride: true,
       existingSources: existing,
     });
     expect(out.added).toEqual([]);
@@ -126,7 +109,6 @@ describe('ingestGithubResults', () => {
       toolName: 'search_repositories',
       payload: { items: [{ full_name: 'a/b' }, { full_name: '' }] },
       provider: 'github',
-      flagOverride: true,
     });
     expect(out.added.length).toBeGreaterThanOrEqual(1);
   });
@@ -150,7 +132,6 @@ describe('ingestGithubResults', () => {
         ],
       },
       provider: 'github',
-      flagOverride: true,
     });
     expect(out.added).toHaveLength(2);
     expect(out.added[0].id).toBe('msg-1:0:github:0');
@@ -163,14 +144,12 @@ describe('ingestGithubResults', () => {
       toolName: 'get_file_contents',
       payload: { repo: 'a/b', path: 'x', sha: 's' },
       provider: 'github',
-      flagOverride: true,
     });
     const second = ingestGithubResults({
       messageId: 'msg-1',
       toolName: 'get_file_contents',
       payload: { repo: 'a/b', path: 'x', sha: 's' },
       provider: 'github',
-      flagOverride: true,
       existingSources: first.nextSources,
     });
     expect(second.nextSources).toHaveLength(2);

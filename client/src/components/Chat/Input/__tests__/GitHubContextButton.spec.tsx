@@ -1,22 +1,20 @@
 /**
- * Phase 7 PR 7.2 — GitHub context button render-gating + selection flow.
+ * GitHub context button render-gating + selection flow.
  *
- * Validates the visibility gates (flag + at least one `kind:'github'`
- * server), modal open/close, chip render after selection, and
- * chip-remove clearing the recoil atom.
+ * Validates the visibility gate (at least one `kind:'github'` server),
+ * modal open/close, chip render after selection, and chip-remove
+ * clearing the recoil atom.
  */
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 import { render, screen } from '@testing-library/react';
 import { RecoilRoot } from 'recoil';
 
-let mockEnabled = true;
 let mockServers: Array<{ serverName: string; config: Record<string, unknown> }> = [
   { serverName: 'github', config: { kind: 'github' } },
 ];
 
 jest.mock('~/hooks/MCP/useGithubFirstClass', () => ({
-  useGithubFirstClassEnabled: () => mockEnabled,
   useGithubMcpServers: () => mockServers,
 }));
 
@@ -52,14 +50,7 @@ const renderButton = () =>
 
 describe('GitHubContextButton — gating', () => {
   beforeEach(() => {
-    mockEnabled = true;
     mockServers = [{ serverName: 'github', config: { kind: 'github' } }];
-  });
-
-  it('renders nothing when the flag is off', () => {
-    mockEnabled = false;
-    const { container } = renderButton();
-    expect(container.firstChild).toBeNull();
   });
 
   it('renders nothing when no kind:github servers exist', () => {
@@ -68,7 +59,7 @@ describe('GitHubContextButton — gating', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders the button when both gates pass', () => {
+  it('renders the button when at least one kind:github server is present', () => {
     renderButton();
     expect(screen.getByTestId('github-context-button')).toBeInTheDocument();
   });
