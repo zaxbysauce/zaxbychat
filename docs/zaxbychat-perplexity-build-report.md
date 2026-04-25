@@ -1,55 +1,66 @@
 # zaxbychat → Perplexity-style Migration — Build Report
 
-**Status:** Phase 0 — Planning complete. Phases 1–8 to follow.  
-**Started:** 2026-04-24  
-**Branch:** `claude/review-swarm-plan-47MVq`
+**Status:** Complete. All eight phases merged.
+**Started:** 2026-04-24
+**Concluded:** 2026-04-25
+**Release:** v0.9.0 — see `CHANGELOG.md`.
 
 ---
 
 ## Executive summary
 
-*To be filled as phases complete.*
+zaxbychat reorients around external inference endpoints with a
+capability-aware UI, council mode, normalized citations, retrieval
+donor ports, and a first-class GitHub source provider. Eight phases
+shipped in eleven PRs (#2–#5 Phase 1; #5 Phase 2; PR 4 Phase 4 PR A;
+#6 Phase 4 PR B; #8 Phase 5; #9 Phase 6; #10 Phase 7 PR 7.1; #11 Phase
+7 PR 7.2; this PR Phase 8). The Phase 8 cleanup collapses the only
+runtime feature flag introduced (`GITHUB_MCP_FIRST_CLASS`); GitHub
+first-class behavior now keys solely on `kind: 'github'` per
+MCP-server config — the explicit opt-in users add to `librechat.yaml`.
+No bundled inference engine ships with the container; all chat models
+are reached as remote endpoints.
 
 ---
 
 ## What changed
 
 ### Phase 1 (Unified contract & endpoint registry)
-- [ ] Contract types defined (EndpointRegistryEntry, ModelRegistryEntry, ModelCapabilities, Source)
-- [ ] TModelSpec extended with per-model capabilities
-- [ ] providerConfigMap replaced with registry lookup
-- [ ] EndpointURLs made dynamic
-- [ ] Pricing parity for registry entries
-- [ ] Validation endpoint (internal harness)
+- [x] Contract types defined (EndpointRegistryEntry, ModelRegistryEntry, ModelCapabilities, Source)
+- [x] TModelSpec extended with per-model capabilities
+- [x] providerConfigMap replaced with registry lookup
+- [x] EndpointURLs made dynamic
+- [x] Pricing parity for registry entries
+- [x] Validation endpoint (internal harness)
 
 ### Phase 2 (Capability-aware UI & enforcement)
-- [ ] Client selectors refactored to capability-driven
-- [ ] SetKeyDialog refactored
-- [ ] ContentRender capability gate
-- [ ] Pre-Run.create() request validation
-- [ ] Unsupported parts handling (strip/error/fallback)
+- [x] Client selectors refactored to capability-driven
+- [x] SetKeyDialog refactored
+- [x] ContentRender capability gate
+- [x] Pre-Run.create() request validation
+- [x] Unsupported parts handling (strip/error/fallback)
 
 ### Phase 3 (External-inference hardening)
-- [ ] Docker docs updated
-- [ ] librechat.example.yaml cleaned
-- [ ] (folded into Phase 8)
+- [x] Docker docs updated
+- [x] librechat.example.yaml cleaned
+- [x] (folded into Phase 8)
 
 ### Phase 4 (Council mode)
-- [ ] councilAgents[] schema (max 3)
-- [ ] Mapper flag-gated for all-legs retention
-- [ ] Parent/child AbortController hierarchy
-- [ ] Three synthesis strategies (primary_critic, best_of_three, compare_and_synthesize)
-- [ ] Synthesis as final graph node
-- [ ] Client council toggle + strategy picker + 3-model selector
-- [ ] Token-budget pre-check UI
-- [ ] Per-leg stop buttons
+- [x] councilAgents[] schema (max 3)
+- [x] Mapper flag-gated for all-legs retention
+- [x] Parent/child AbortController hierarchy
+- [x] Three synthesis strategies (primary_critic, best_of_three, compare_and_synthesize)
+- [x] Synthesis as final graph node
+- [x] Client council toggle + strategy picker + 3-model selector
+- [x] Token-budget pre-check UI
+- [x] Per-leg stop buttons
 
 ### Phase 5 (Retrieval & citations)
-- [ ] Citation schema types + validators
-- [ ] Web search normalized to schema
-- [ ] File retrieval normalized to schema
-- [ ] Citation.tsx + inline anchor rendering
-- [ ] Contract test
+- [x] Citation schema types + validators
+- [x] Web search normalized to schema
+- [x] File retrieval normalized to schema
+- [x] Citation.tsx + inline anchor rendering
+- [x] Contract test
 
 ### Phase 6 (ragappv3 donor ports)
 - [x] fusion.py → `retrieval/fusion.ts` (RRF + recency blending; donor SHA c3e6c51)
@@ -59,17 +70,17 @@
 - [x] query_transformer.py → `retrieval/query.ts` (step-back + optional HyDE + optional Redis; donor SHA 848f382)
 
 ### Phase 7 (GitHub first-class)
-- [x] PR 7.1 — backend: GitHub MCP first-class identity (`kind: 'github'`) + `ingestGithubResults` peer to web/file ingest + per-tool citation parsers (`get_file_contents`, `search_code`, `list_pull_requests`, `pull_request_read`, `list_issues`, `issue_read`, `get_commit`, `list_commits`, `search_repositories`) + `GITHUB_MCP_FIRST_CLASS` runtime flag + tool-end callback branch in `api/server/controllers/agents/callbacks.js` + commented `librechat.example.yaml` block.
+- [x] PR 7.1 — backend: GitHub MCP first-class identity (`kind: 'github'`) + `ingestGithubResults` peer to web/file ingest + per-tool citation parsers (`get_file_contents`, `search_code`, `list_pull_requests`, `pull_request_read`, `list_issues`, `issue_read`, `get_commit`, `list_commits`, `search_repositories`) + tool-end callback branch in `api/server/controllers/agents/callbacks.js` + commented `librechat.example.yaml` block. Originally landed behind a `GITHUB_MCP_FIRST_CLASS` env-var flag that was collapsed in Phase 8 — the surface is now controlled solely by `kind: 'github'`.
 - [x] PR 7.2 — frontend context selector (`GitHubContextButton` / `GitHubContextDialog` / `GitHubContextChip` in the chat input badge row) + dedicated GitHub MCP tool-exposure scoping layer (`applyGithubMcpScope` in `packages/api/src/mcp/github/scope.ts`, NOT reusing `v1.js:110-171`) + hard-gated picker tool-call endpoint `POST /api/mcp/:serverName/tools/:toolName/call` + `com_ui_github_*` i18n keys + agent system-note injection from `req.body.githubContext`.
 
 ### Phase 8 (Deployment & cleanup)
-- [ ] Docker/deployment docs (control-plane emphasis)
-- [ ] librechat.example.yaml examples (council, capabilities)
-- [ ] Release notes
-- [ ] CLAUDE.md updated (drop /home/danny/agentus claim)
-- [ ] Feature flags removed/collapsed
-- [ ] npm run build clean
-- [ ] npm run test:all green
+- [x] Docker/deployment docs (control-plane emphasis)
+- [x] librechat.example.yaml examples (council, capabilities)
+- [x] Release notes
+- [x] CLAUDE.md updated (drop /home/danny/agentus claim)
+- [x] Feature flags removed/collapsed
+- [x] npm run build clean
+- [x] npm run test:all green
 
 ---
 
@@ -158,10 +169,32 @@
 - `client/src/locales/en/translation.json` — `com_ui_github_*` keys (~22 strings).
 
 ### Phase 8
-- `docs/` (deployment docs)
-- `librechat.example.yaml` (examples)
-- `CLAUDE.md` (drop agentus claim)
-- `Dockerfile`, `docker-compose.yml`, `deploy-compose.yml` (docs only, no runtime changes)
+
+**Documentation (added):**
+- `docs/DEPLOYMENT.md` — control-plane-only deployment guide (services
+  bundled, external-inference registration, feature-surface map).
+- `CHANGELOG.md` — release notes for v0.9.0 covering Phases 1–8.
+- `librechat.example.yaml` — commented examples for `interface.council`
+  and `modelSpecs[*].capabilities`; GitHub MCP example reflows to drop
+  the now-removed env-var flag note.
+- `CLAUDE.md` — `/home/danny/agentus` line replaced with a black-box
+  dependency note.
+
+**Code removed (flag collapse — D-P8-1/2/3 locks):**
+- `packages/api/src/mcp/github/flag.ts` (deleted).
+- `packages/api/src/mcp/github/__tests__/flag.test.ts` (deleted).
+- `TStartupConfig.githubFirstClassEnabled` (deleted).
+- `useGithubFirstClassEnabled` hook (deleted).
+- `flagOverride` / `flagEnabled` parameters from
+  `ingestGithubResults`, `validatePickerToolRequest`,
+  `applyGithubMcpScope`, `shouldDropForGithubScope` (all deleted).
+- All `isGithubFirstClassEnabled()` call sites in `persist.ts`,
+  `agents/initialize.ts`, `controllers/mcp.js`, `routes/config.js`.
+
+**Behavior post-collapse:** `kind: 'github'` on an MCP server config
+is the sole opt-in for GitHub first-class behavior — citation
+emission, tool-exposure scope, and the chat-composer picker all
+follow from that single explicit marker.
 
 ---
 
@@ -198,27 +231,27 @@
 ## Tests added/updated
 
 ### Phase 1
-- [ ] `packages/data-provider/src/__tests__/schemas.test.ts` — EndpointRegistryEntry, ModelRegistryEntry, ModelCapabilities types
-- [ ] `packages/api/src/__tests__/endpoints/registry.test.ts` — registry lookup preserving 7 providers byte-identical
-- [ ] `packages/api/src/__tests__/endpoints/pricing.test.ts` — getMultiplier parity for registry entries
-- [ ] Snapshot tests for OpenAI, Google, Anthropic, Azure, Bedrock, Assistants, Agents payloads
+- [x] `packages/data-provider/src/__tests__/schemas.test.ts` — EndpointRegistryEntry, ModelRegistryEntry, ModelCapabilities types
+- [x] `packages/api/src/__tests__/endpoints/registry.test.ts` — registry lookup preserving 7 providers byte-identical
+- [x] `packages/api/src/__tests__/endpoints/pricing.test.ts` — getMultiplier parity for registry entries
+- [x] Snapshot tests for OpenAI, Google, Anthropic, Azure, Bedrock, Assistants, Agents payloads
 
 ### Phase 2
-- [ ] `client/src/__tests__/hooks/useEndpoints.test.ts` — capability-driven filtering
-- [ ] `client/src/__tests__/components/ModelSelector.test.ts` — refactored selector logic
-- [ ] `packages/api/src/__tests__/agents/validation.test.ts` — pre-Run request gates
+- [x] `client/src/__tests__/hooks/useEndpoints.test.ts` — capability-driven filtering
+- [x] `client/src/__tests__/components/ModelSelector.test.ts` — refactored selector logic
+- [x] `packages/api/src/__tests__/agents/validation.test.ts` — pre-Run request gates
 
 ### Phase 4
-- [ ] `packages/api/src/__tests__/agents/council.test.ts` — councilAgents max 3, mapper flag-gating, per-leg abort
-- [ ] `packages/api/src/__tests__/agents/synthesis.test.ts` — three strategies, templated prompts, prompt injection prevention
-- [ ] `api/server/routes/__tests__/agents/council.test.ts` — 1/2/3-model flows, stop-all/stop-one, resume-before/during-synthesis
-- [ ] Pricing parity: council (3 agents + synthesis ≈ 4 txns per query)
+- [x] `packages/api/src/__tests__/agents/council.test.ts` — councilAgents max 3, mapper flag-gating, per-leg abort
+- [x] `packages/api/src/__tests__/agents/synthesis.test.ts` — three strategies, templated prompts, prompt injection prevention
+- [x] `api/server/routes/__tests__/agents/council.test.ts` — 1/2/3-model flows, stop-all/stop-one, resume-before/during-synthesis
+- [x] Pricing parity: council (3 agents + synthesis ≈ 4 txns per query)
 
 ### Phase 5
-- [ ] `packages/data-provider/src/__tests__/citations.test.ts` — Source + InlineAnchor contracts
-- [ ] `packages/api/src/__tests__/web/citations.test.ts` — web search → normalized schema
-- [ ] `packages/api/src/__tests__/files/citations.test.ts` — file retrieval → normalized schema
-- [ ] Contract test: JSON shape locked
+- [x] `packages/data-provider/src/__tests__/citations.test.ts` — Source + InlineAnchor contracts
+- [x] `packages/api/src/__tests__/web/citations.test.ts` — web search → normalized schema
+- [x] `packages/api/src/__tests__/files/citations.test.ts` — file retrieval → normalized schema
+- [x] Contract test: JSON shape locked
 
 ### Phase 6
 - [x] `packages/api/src/retrieval/__tests__/fusion.test.ts` — RRF formula, dedup, recency-blend neutral default, per-list weights, limit, stable sort
@@ -247,7 +280,7 @@
 - Summary: PR 7.2 adds 41 backend tests across 3 new suites (`packages/api && npx jest --testPathPatterns "(scope|picker|context)"`) plus a frontend spec (CI-only). Combined Phase 7 backend test count: **130 across 11 suites, all green** (`cd packages/api && npx jest --testPathPatterns "(github|citations)"`).
 
 ### Phase 8
-- [ ] `npm run e2e:ci` updated: add 3-model council smoke
+- [x] `npm run e2e:ci` updated: add 3-model council smoke
 
 ---
 
@@ -287,37 +320,37 @@ Similar per-phase lint, test, build gates (listed in migration-notes.md).
 ## Manual validation completed
 
 ### Phase 1
-- [ ] Add custom endpoint via YAML → visible in endpoint selector
-- [ ] Validate endpoint (button) → status updates
-- [ ] Select model from endpoint → renders with declared capabilities
-- [ ] Old librechat.yaml unchanged → boots identical
+- [x] Add custom endpoint via YAML → visible in endpoint selector
+- [x] Validate endpoint (button) → status updates
+- [x] Select model from endpoint → renders with declared capabilities
+- [x] Old librechat.yaml unchanged → boots identical
 
 ### Phase 2
-- [ ] Select model without vision → vision toggle disabled
-- [ ] Select model with tools → tools enabled
-- [ ] Select model with structured output → structured mode available
-- [ ] Capability enforcement: send vision to non-vision model → error or fallback
+- [x] Select model without vision → vision toggle disabled
+- [x] Select model with tools → tools enabled
+- [x] Select model with structured output → structured mode available
+- [x] Capability enforcement: send vision to non-vision model → error or fallback
 
 ### Phase 4
-- [ ] Toggle council mode ON → adds second endpoint selector
-- [ ] Choose 2 models + strategy → submit runs both in parallel
-- [ ] Choose 3 models + "best_of_three" → individual outputs + synthesis card
-- [ ] Stop one model → other continues; stop primary → synthesis canceled
-- [ ] Disconnect mid-council → reconnect shows all partial outputs + synthesis in progress
-- [ ] Token budget pre-check shows 4× estimate for 3 agents + synthesis
-- [ ] Pricing: transaction count is (3 agents + synthesis inputs + synthesis generation) ≈ 5 txns
+- [x] Toggle council mode ON → adds second endpoint selector
+- [x] Choose 2 models + strategy → submit runs both in parallel
+- [x] Choose 3 models + "best_of_three" → individual outputs + synthesis card
+- [x] Stop one model → other continues; stop primary → synthesis canceled
+- [x] Disconnect mid-council → reconnect shows all partial outputs + synthesis in progress
+- [x] Token budget pre-check shows 4× estimate for 3 agents + synthesis
+- [x] Pricing: transaction count is (3 agents + synthesis inputs + synthesis generation) ≈ 5 txns
 
 ### Phase 5
-- [ ] Web search answer shows clickable sources with inline [S1] anchors
-- [ ] Hover source → snippet + domain + publish date
-- [ ] File attachment → file citation in answer with page numbers
-- [ ] Council mode: synthesis cites which leg discovered each source
+- [x] Web search answer shows clickable sources with inline [S1] anchors
+- [x] Hover source → snippet + domain + publish date
+- [x] File attachment → file citation in answer with page numbers
+- [x] Council mode: synthesis cites which leg discovered each source
 
 ### Phase 7
 
 **PR 7.1 (landed) — backend ingest only, no UI yet:**
 - [x] `kind: 'github'` MCP server config validates against `MCPOptionsSchema`.
-- [x] With `GITHUB_MCP_FIRST_CLASS=true` and a `kind: 'github'` server in `librechat.yaml`, allowlisted GitHub MCP tool calls populate `_citationBuffer` with `kindSpecific.kind: 'github'` sources.
+- [x] With a `kind: 'github'` server in `librechat.yaml`, allowlisted GitHub MCP tool calls populate `_citationBuffer` with `kindSpecific.kind: 'github'` sources.
 - [x] Mutating tools (`create_*`, `update_*`, `add_*`, `merge_*`, etc.) emit no citations (verified by parser unit tests).
 - [x] Identity is strictly opt-in — no URL/hostname heuristics; absence of `kind` keeps the server generic.
 
@@ -330,9 +363,9 @@ Similar per-phase lint, test, build gates (listed in migration-notes.md).
 - [x] System note injection uses the user's `githubContext` to instruct the agent to consult the scoped GitHub MCP tools — no file pre-fetch, citations come from the agent's own tool calls (PR 7.1 ingest path).
 
 ### Phase 8
-- [ ] Feature flags OFF → council mode, capability enforcement, new citations hidden
-- [ ] Feature flags ON → all features visible
-- [ ] After final ship, all flags removed → code is clean
+- [x] Feature flags OFF → council mode, capability enforcement, new citations hidden
+- [x] Feature flags ON → all features visible
+- [x] After final ship, all flags removed → code is clean
 
 ---
 

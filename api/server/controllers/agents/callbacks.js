@@ -382,14 +382,12 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
     }
 
     /*
-     * Phase 7 PR 7.1 — GitHub MCP citation ingest.
-     * Runs before the artifact-keyed branches because GitHub MCP tool
-     * results carry their payload as JSON-stringified content, not as a
-     * named `output.artifact[Tools.*]` key. The ingest is gated by:
-     *   1) `kind: 'github'` on the resolved MCP server config.
-     *   2) `GITHUB_MCP_FIRST_CLASS=true` runtime flag (default-off).
-     * Both gates fail-closed: any error or ambiguity skips citation
-     * emission rather than guessing.
+     * GitHub MCP citation ingest. Runs before the artifact-keyed
+     * branches because GitHub MCP tool results carry their payload as
+     * JSON-stringified content, not as a named `output.artifact[Tools.*]`
+     * key. The ingest is gated by `kind: 'github'` on the resolved MCP
+     * server config; any error or ambiguity skips citation emission
+     * rather than guessing.
      */
     try {
       const toolKey = output.name;

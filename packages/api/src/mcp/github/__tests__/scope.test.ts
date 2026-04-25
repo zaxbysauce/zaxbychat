@@ -71,21 +71,10 @@ describe('GITHUB_MCP_PICKER_ALLOWLIST', () => {
 });
 
 describe('shouldDropForGithubScope', () => {
-  it('returns false when flag is off (no-op)', () => {
-    expect(
-      shouldDropForGithubScope({
-        toolKey: 'create_issue_mcp_github',
-        flagEnabled: false,
-        getServerConfig: resolveOnly('github', githubServer),
-      }),
-    ).toBe(false);
-  });
-
   it('returns false for non-MCP tool keys (no delimiter)', () => {
     expect(
       shouldDropForGithubScope({
         toolKey: 'web_search',
-        flagEnabled: true,
         getServerConfig: () => undefined,
       }),
     ).toBe(false);
@@ -95,7 +84,6 @@ describe('shouldDropForGithubScope', () => {
     expect(
       shouldDropForGithubScope({
         toolKey: 'something_mcp_other',
-        flagEnabled: true,
         getServerConfig: resolveOnly('other', genericServer),
       }),
     ).toBe(false);
@@ -111,7 +99,6 @@ describe('shouldDropForGithubScope', () => {
       expect(
         shouldDropForGithubScope({
           toolKey: `${tool}_mcp_github`,
-          flagEnabled: true,
           getServerConfig: resolveOnly('github', githubServer),
         }),
       ).toBe(false);
@@ -130,7 +117,6 @@ describe('shouldDropForGithubScope', () => {
       expect(
         shouldDropForGithubScope({
           toolKey: `${tool}_mcp_github`,
-          flagEnabled: true,
           getServerConfig: resolveOnly('github', githubServer),
         }),
       ).toBe(true);
@@ -141,7 +127,6 @@ describe('shouldDropForGithubScope', () => {
     expect(
       shouldDropForGithubScope({
         toolKey: 'create_issue_mcp_unknown',
-        flagEnabled: true,
         getServerConfig: () => undefined,
       }),
     ).toBe(false);
@@ -162,31 +147,19 @@ describe('applyGithubMcpScope', () => {
 
   const getName = (t: ToolItem): string | undefined => t.name;
 
-  it('drops only non-allowlisted tools on kind:github servers when flag is on', () => {
+  it('drops only non-allowlisted tools on kind:github servers', () => {
     const out = applyGithubMcpScope({
       items: tools,
       getName,
-      flagEnabled: true,
       getServerConfig: resolveOnly('github', githubServer),
     });
     expect(out.map((t) => t.payload)).toEqual([undefined, 1, 3, 5, 99]);
-  });
-
-  it('passes through items unchanged when flag is off', () => {
-    const out = applyGithubMcpScope({
-      items: tools,
-      getName,
-      flagEnabled: false,
-      getServerConfig: resolveOnly('github', githubServer),
-    });
-    expect(out).toHaveLength(tools.length);
   });
 
   it('preserves order of kept items', () => {
     const out = applyGithubMcpScope({
       items: tools,
       getName,
-      flagEnabled: true,
       getServerConfig: resolveOnly('github', githubServer),
     });
     expect(out[0].name).toBe('web_search');
@@ -199,7 +172,6 @@ describe('applyGithubMcpScope', () => {
     applyGithubMcpScope({
       items: tools,
       getName,
-      flagEnabled: true,
       getServerConfig: resolveOnly('github', githubServer),
     });
     expect(tools).toEqual(original);

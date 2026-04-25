@@ -12,7 +12,6 @@ const {
   redactAllServerSecrets,
   isMCPDomainNotAllowedError,
   isMCPInspectionFailedError,
-  isGithubFirstClassEnabled,
   validatePickerToolRequest,
   PICKER_TOOL_TIMEOUT_MS,
 } = require('@librechat/api');
@@ -23,7 +22,7 @@ const { getMCPManager, getMCPServersRegistry, getFlowStateManager } = require('~
 const { findToken, createToken, updateToken, deleteTokens } = require('~/models');
 
 /**
- * Phase 7 PR 7.2 (D-P7-9 lock) — picker tool-call endpoint.
+ * GitHub MCP picker tool-call endpoint.
  *
  * `POST /api/mcp/:serverName/tools/:toolName/call` — synchronous,
  * GitHub-only, allowlist-only, hard-timeout MCP tool invocation used by
@@ -33,10 +32,10 @@ const { findToken, createToken, updateToken, deleteTokens } = require('~/models'
  * 403 for non-allowlisted tools).
  *
  * Hard gates (fail-closed):
- *   1) `GITHUB_MCP_FIRST_CLASS=true`                       → else 404.
- *   2) Resolved server config has `kind: 'github'`         → else 404.
- *   3) Tool name is in `GITHUB_MCP_PICKER_ALLOWLIST`       → else 403.
- *   4) Args body ≤ 8KB                                     → else 413.
+ *   1) Authenticated user                                  → else 401.
+ *   2) Tool name is in `GITHUB_MCP_PICKER_ALLOWLIST`       → else 403.
+ *   3) Args body ≤ 8KB                                     → else 413.
+ *   4) Resolved server config has `kind: 'github'`         → else 404.
  *   5) `PICKER_TOOL_TIMEOUT_MS` AbortController            → else 504.
  *
  * No freeform tool invocation; no streaming; no event emission.
@@ -60,7 +59,6 @@ const callPickerTool = async (req, res) => {
   }
 
   const validation = validatePickerToolRequest({
-    flagEnabled: isGithubFirstClassEnabled(),
     userId,
     serverName,
     toolName,

@@ -30,11 +30,7 @@ import {
 import { filterFilesByEndpointConfig } from '~/files';
 import { generateArtifactsPrompt } from '~/prompts';
 import { getProviderConfig } from '~/endpoints';
-import {
-  applyGithubMcpScope,
-  isGithubFirstClassEnabled,
-  renderGithubContextSystemNote,
-} from '~/mcp/github';
+import { applyGithubMcpScope, renderGithubContextSystemNote } from '~/mcp/github';
 import { githubContextSelectionSchema } from 'librechat-data-provider';
 import type { GithubContextSelection, MCPOptions } from 'librechat-data-provider';
 import { primeResources } from './resources';
@@ -404,39 +400,35 @@ export async function initializeAgent(
   }
 
   /*
-   * Phase 7 PR 7.2 — GitHub MCP scope + context system note.
+   * GitHub MCP scope + context system note.
    *
    * Scope: drop tools whose `_mcp_<serverName>` server has
    * `kind: 'github'` and whose tool shortname is not in the picker
    * allowlist. Generic MCP servers and non-MCP tools pass through.
    *
-   * Context note: when `req.body.githubContext` is present and the
-   * runtime flag is on, append a deterministic instruction describing
-   * the selected scope. No file contents are pre-fetched; the agent
-   * uses the scoped tools to read/cite as needed.
+   * Context note: when `req.body.githubContext` validates, append a
+   * deterministic instruction describing the selected scope. No file
+   * contents are pre-fetched; the agent uses the scoped tools to
+   * read/cite as needed.
    */
-  const githubFlagEnabled = isGithubFirstClassEnabled();
-  if (githubFlagEnabled) {
-    const mcpConfig = (req.config as { mcpConfig?: Record<string, MCPOptions> } | undefined)
-      ?.mcpConfig;
-    const resolveServer = (serverName: string): MCPOptions | undefined =>
-      mcpConfig?.[serverName];
-    tools = applyGithubMcpScope({
-      items: tools,
-      getName: (t) => (t as { name?: string }).name,
-      getServerConfig: resolveServer,
-      flagEnabled: true,
-    });
-    const rawContext = (req.body as { githubContext?: unknown } | undefined)?.githubContext;
-    if (rawContext) {
-      const parsed = githubContextSelectionSchema.safeParse(rawContext);
-      if (parsed.success) {
-        const note = renderGithubContextSystemNote(parsed.data as GithubContextSelection);
-        if (note) {
-          agent.additional_instructions = agent.additional_instructions
-            ? `${agent.additional_instructions}\n\n${note}`
-            : note;
-        }
+  const mcpConfig = (req.config as { mcpConfig?: Record<string, MCPOptions> } | undefined)
+    ?.mcpConfig;
+  const resolveServer = (serverName: string): MCPOptions | undefined =>
+    mcpConfig?.[serverName];
+  tools = applyGithubMcpScope({
+    items: tools,
+    getName: (t) => (t as { name?: string }).name,
+    getServerConfig: resolveServer,
+  });
+  const rawContext = (req.body as { githubContext?: unknown } | undefined)?.githubContext;
+  if (rawContext) {
+    const parsed = githubContextSelectionSchema.safeParse(rawContext);
+    if (parsed.success) {
+      const note = renderGithubContextSystemNote(parsed.data as GithubContextSelection);
+      if (note) {
+        agent.additional_instructions = agent.additional_instructions
+          ? `${agent.additional_instructions}\n\n${note}`
+          : note;
       }
     }
   }

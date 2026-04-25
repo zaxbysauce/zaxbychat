@@ -8,15 +8,14 @@ export interface CallPickerToolArgs {
 }
 
 /**
- * Phase 7 PR 7.2 — picker-side mutation hook for the hard-gated
+ * Picker-side mutation hook for the hard-gated
  * `POST /api/mcp/:serverName/tools/:toolName/call` endpoint.
  *
  * The server enforces:
- *   - `GITHUB_MCP_FIRST_CLASS=true`
- *   - resolved server has `kind: 'github'`
- *   - `toolName` is in the picker allowlist
- *   - 8KB args size cap
- *   - 5s hard timeout
+ *   - resolved server has `kind: 'github'` (404 otherwise)
+ *   - `toolName` is in the picker allowlist (403 otherwise)
+ *   - 8KB args size cap (413 otherwise)
+ *   - 5s hard timeout (504 otherwise)
  *
  * Caller surfaces failures via the standard React Query `error`
  * channel; no client-side retry (the picker UI prefers a single fast

@@ -21,7 +21,6 @@ const genericServer = {
 } as unknown as MCPOptions;
 
 const baseInput = {
-  flagEnabled: true,
   userId: 'u-1',
   serverName: 'github',
   toolName: 'search_repositories',
@@ -31,12 +30,6 @@ const baseInput = {
 };
 
 describe('validatePickerToolRequest — gates', () => {
-  it('returns 404 when flag is off', () => {
-    const out = validatePickerToolRequest({ ...baseInput, flagEnabled: false });
-    expect(out.ok).toBe(false);
-    if (!out.ok) expect(out.status).toBe(404);
-  });
-
   it('returns 401 when userId is missing', () => {
     const out = validatePickerToolRequest({ ...baseInput, userId: undefined });
     expect(out.ok).toBe(false);

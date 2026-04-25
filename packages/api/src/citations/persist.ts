@@ -14,7 +14,6 @@ import type {
   NormalizationFailure,
   RawGithubResult,
 } from 'librechat-data-provider';
-import { isGithubFirstClassEnabled } from '../mcp/github/flag';
 import { parseGithubMcpResult, isCitationEmittingGithubTool } from '../mcp/github/parsers';
 
 /**
@@ -108,25 +107,19 @@ export interface IngestGithubResultsParams {
   provider: string;
   legAttribution?: LegAttribution;
   existingSources?: ReadonlyArray<CitationSource>;
-  /**
-   * Test-only override of the runtime feature flag. Production callers
-   * leave this undefined; the flag is read from `process.env`.
-   */
-  flagOverride?: boolean;
 }
 
 /**
- * Phase 7 PR 7.1 (§D-P7-2 / §D-P7-4) — server-side ingestion peer to
- * `ingestWebResults` / `ingestFileResults` for GitHub MCP tool output.
- *
- * Hard-gated by `GITHUB_MCP_FIRST_CLASS`. When the flag is off or the
- * tool is not in the citation-emitting allowlist, the helper returns
- * the existing source list unchanged with no failures.
+ * Server-side ingestion peer to `ingestWebResults` /
+ * `ingestFileResults` for GitHub MCP tool output. The caller's
+ * surrounding flow already determines that the tool came from a
+ * `kind:'github'` MCP server (see `controllers/agents/callbacks.js`);
+ * this helper only routes the payload through a parser and falls back
+ * to a no-op for non-citation-emitting tool names.
  */
 export function ingestGithubResults(params: IngestGithubResultsParams): IngestResult {
-  const enabled = params.flagOverride ?? isGithubFirstClassEnabled();
   const existing = params.existingSources ?? [];
-  if (!enabled || !isCitationEmittingGithubTool(params.toolName)) {
+  if (!isCitationEmittingGithubTool(params.toolName)) {
     return { nextSources: [...existing], added: [], failures: [] };
   }
   const rawResults: RawGithubResult[] = parseGithubMcpResult(params.toolName, params.payload);
