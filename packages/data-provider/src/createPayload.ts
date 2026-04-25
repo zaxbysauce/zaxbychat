@@ -16,6 +16,7 @@ export default function createPayload(submission: t.TSubmission) {
     endpointOption,
     councilAgents,
     councilStrategy,
+    githubContext,
   } = submission;
   const { conversationId } = s.tConvoUpdateSchema.parse(conversation);
   const { endpoint: _e, endpointType } = endpointOption as {
@@ -45,6 +46,7 @@ export default function createPayload(submission: t.TSubmission) {
     ...(councilAgents && councilAgents.length > 0
       ? { councilAgents, councilStrategy }
       : {}),
+    ...(githubContext ? { githubContext } : {}),
   };
 
   return { server, payload };

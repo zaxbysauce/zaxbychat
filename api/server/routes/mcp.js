@@ -29,6 +29,7 @@ const {
   getMCPServersList,
   getMCPServerById,
   getMCPTools,
+  callPickerTool,
 } = require('~/server/controllers/mcp');
 const {
   getOAuthReconnectionManager,
@@ -71,6 +72,13 @@ const checkMCPCreate = generateCheckAccess({
 router.get('/tools', requireJwtAuth, async (req, res) => {
   return getMCPTools(req, res);
 });
+
+/**
+ * Phase 7 PR 7.2 — synchronous, GitHub-only, allowlist-only picker
+ * tool-call endpoint. See `callPickerTool` for hard-gate semantics.
+ * @route POST /api/mcp/:serverName/tools/:toolName/call
+ */
+router.post('/:serverName/tools/:toolName/call', requireJwtAuth, callPickerTool);
 
 /**
  * Initiate OAuth flow

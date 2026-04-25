@@ -60,7 +60,7 @@
 
 ### Phase 7 (GitHub first-class)
 - [x] PR 7.1 — backend: GitHub MCP first-class identity (`kind: 'github'`) + `ingestGithubResults` peer to web/file ingest + per-tool citation parsers (`get_file_contents`, `search_code`, `list_pull_requests`, `pull_request_read`, `list_issues`, `issue_read`, `get_commit`, `list_commits`, `search_repositories`) + `GITHUB_MCP_FIRST_CLASS` runtime flag + tool-end callback branch in `api/server/controllers/agents/callbacks.js` + commented `librechat.example.yaml` block.
-- [ ] PR 7.2 — frontend context selector (repo/file/PR/issue) + dedicated GitHub MCP tool-exposure scoping layer (NOT reusing `v1.js:110-171`) + i18n.
+- [x] PR 7.2 — frontend context selector (`GitHubContextButton` / `GitHubContextDialog` / `GitHubContextChip` in the chat input badge row) + dedicated GitHub MCP tool-exposure scoping layer (`applyGithubMcpScope` in `packages/api/src/mcp/github/scope.ts`, NOT reusing `v1.js:110-171`) + hard-gated picker tool-call endpoint `POST /api/mcp/:serverName/tools/:toolName/call` + `com_ui_github_*` i18n keys + agent system-note injection from `req.body.githubContext`.
 
 ### Phase 8 (Deployment & cleanup)
 - [ ] Docker/deployment docs (control-plane emphasis)
@@ -136,10 +136,26 @@
 - `api/server/controllers/agents/callbacks.js` — adds `extractMcpJsonPayload` helper + GitHub MCP branch in `createToolEndCallback`, ahead of the artifact early-exit. Reuses Phase 5's `_citationBuffer` accumulator.
 - `librechat.example.yaml` — commented `mcpServers.github` example showing the `kind: 'github'` marker + PAT header.
 
-**PR 7.2 (pending — see PR 7.1 plan write-up)**
-- `packages/api/src/mcp/github/scope.ts` (hard-capped allowlist enforcement, NEW layer; do **not** reuse `v1.js:110-171`).
-- `client/src/components/SidePanel/GitHub/` (repo/file/PR/issue selector).
-- i18n `client/src/locales/en/translation.json` — `com_github_*` keys.
+**PR 7.2 (landed)**
+- `packages/data-provider/src/types/github.ts` — `GithubContextSelection` + Zod schema (single-context per request; honest-shape refinements).
+- `packages/data-provider/src/config.ts` — `TStartupConfig.githubFirstClassEnabled` mirror + `mcpServers.kind` mirror.
+- `packages/data-provider/src/types.ts` + `createPayload.ts` — `TSubmission.githubContext` + `TPayload.githubContext` threaded through; spread into payload only when a selection is attached.
+- `packages/data-provider/src/api-endpoints.ts` + `data-service.ts` — `mcpToolCall(serverName, toolName)` endpoint helper + `callMcpPickerTool` data-service.
+- `packages/api/src/mcp/github/scope.ts` — `GITHUB_MCP_PICKER_ALLOWLIST` (citation-emitting set + `list_branches`); pure `applyGithubMcpScope` filter; `shouldDropForGithubScope` predicate. Separate from `v1.js:110-171`.
+- `packages/api/src/mcp/github/picker.ts` — `validatePickerToolRequest` pure function enforcing the four hard gates (404 flag-off, 401 unauth, 403 non-allowlisted tool, 404 non-`kind:'github'` config, 400/413 malformed args).
+- `packages/api/src/mcp/github/context.ts` — `renderGithubContextSystemNote` deterministic, terse instruction string.
+- `packages/api/src/types/http.ts` — `RequestBody.githubContext?: GithubContextSelection` extension.
+- `packages/api/src/agents/initialize.ts` — runs `applyGithubMcpScope` on the final `tools` list and appends the rendered system note to `agent.additional_instructions` when `req.body.githubContext` validates.
+- `api/server/controllers/mcp.js` — new `callPickerTool` controller (thin glue over `validatePickerToolRequest` + `MCPManager.callTool` with 5s `AbortController`).
+- `api/server/routes/mcp.js` — `POST /api/mcp/:serverName/tools/:toolName/call` route gated by `requireJwtAuth`.
+- `api/server/routes/config.js` — populates `githubFirstClassEnabled` on the startup-config payload.
+- `client/src/store/githubContext.ts` — Recoil atom for the current selection.
+- `client/src/hooks/MCP/useGithubFirstClass.ts` — `useGithubFirstClassEnabled` + `useGithubMcpServers` hooks.
+- `client/src/data-provider/MCP/useCallPickerTool.ts` — React-Query mutation for the picker call.
+- `client/src/components/Chat/Input/GitHubContext/` — `GitHubContextButton`, `GitHubContextDialog`, `GitHubContextChip`, barrel `index.ts`.
+- `client/src/components/Chat/Input/BadgeRow.tsx` — renders `<GitHubContextButton />` next to `<MCPSelect />`.
+- `client/src/hooks/Chat/useChatFunctions.ts` — reads atom and threads `githubContext` onto the submission; resets atom after dispatch.
+- `client/src/locales/en/translation.json` — `com_ui_github_*` keys (~22 strings).
 
 ### Phase 8
 - `docs/` (deployment docs)
@@ -222,8 +238,13 @@
 - [x] `packages/api/src/citations/__tests__/persist.github.test.ts` — flag-off no-op; non-allowlisted no-op; appends after existing sources without renumbering; threads `legAttribution`; preserves identity across repeat ingests; multi-citation `search_code` ingestion.
 - Summary: 37 new tests across 5 suites (data-provider 6 + packages/api 31), all green via `cd packages/data-provider && npx jest citations.normalize` and `cd packages/api && npx jest --testPathPatterns "(github|citations)"`.
 
-**PR 7.2 (pending)**
-- [ ] frontend selector + scope-layer unit tests + e2e smoke (attach repo → grounded answer with `kind: 'github'` citations).
+**PR 7.2 (landed)**
+- [x] `packages/api/src/mcp/github/__tests__/scope.test.ts` — allowlist members; flag-off no-op; non-MCP tools untouched; generic MCP servers untouched; `kind:'github'` server with allowlisted tool kept; `kind:'github'` server with mutating / unknown tool dropped; resolver returning undefined defensive case; `applyGithubMcpScope` order preservation + non-mutation.
+- [x] `packages/api/src/mcp/github/__tests__/picker.test.ts` — every gate exercised (404 flag-off, 401 unauth, 400 missing names, 403 non-allowlisted, 400 non-object args, 413 oversized args, 404 non-`kind:'github'` config, 404 missing config); happy-path returns `{ ok: true, serverConfig }` for each allowlisted tool.
+- [x] `packages/api/src/mcp/github/__tests__/context.test.ts` — empty selection → empty string; minimal repo-only note; ref + path + line ranges; single line; pr/issue/commit `item=type#id`; determinism.
+- [x] `packages/data-provider/src/__tests__/citations.normalize.test.ts` — extended for PR 7.1 normalizer; PR 7.2 reuses unchanged (same contract).
+- [x] `client/src/components/Chat/Input/__tests__/GitHubContextButton.spec.tsx` — flag-off and zero-server gates render nothing; modal opens on click; valid selection renders the chip; chip remove clears the recoil atom (frontend jest runs in CI; sandbox lacks `jest-environment-jsdom`).
+- Summary: PR 7.2 adds 41 backend tests across 3 new suites (`packages/api && npx jest --testPathPatterns "(scope|picker|context)"`) plus a frontend spec (CI-only). Combined Phase 7 backend test count: **130 across 11 suites, all green** (`cd packages/api && npx jest --testPathPatterns "(github|citations)"`).
 
 ### Phase 8
 - [ ] `npm run e2e:ci` updated: add 3-model council smoke
@@ -300,11 +321,13 @@ Similar per-phase lint, test, build gates (listed in migration-notes.md).
 - [x] Mutating tools (`create_*`, `update_*`, `add_*`, `merge_*`, etc.) emit no citations (verified by parser unit tests).
 - [x] Identity is strictly opt-in — no URL/hostname heuristics; absence of `kind` keeps the server generic.
 
-**PR 7.2 (pending):**
-- [ ] GitHub context selector UI (repo/file/PR/issue picker).
-- [ ] Attach file from repo → grounded answer cites repo + path + line range.
-- [ ] Attach PR/issue → answer cites PR/issue number + description snippet.
-- [ ] Tool-exposure scoping layer enforces hard-cap allowlist (separate layer from `v1.js:110-171`).
+**PR 7.2 (landed):**
+- [x] GitHub context selector UI: badge-row button (`GitHubContextButton`) + modal picker (`GitHubContextDialog`) + selected-context chip (`GitHubContextChip`).
+- [x] Selector hides itself when no `kind:'github'` server is configured or `githubFirstClassEnabled` is false (mirrored from startup config).
+- [x] Single-context per request enforced by `githubContextSelectionSchema`; honest-shape (omits fields that can't be represented honestly).
+- [x] Tool-exposure scoping layer (`applyGithubMcpScope`) enforces the hard-cap allowlist as a separate, dedicated module — does not reuse `v1.js:110-171`.
+- [x] Picker's tool-call endpoint (`POST /api/mcp/:serverName/tools/:toolName/call`) is GitHub-only by enforcement (404 for non-`kind:'github'` configs); generic path for routing only.
+- [x] System note injection uses the user's `githubContext` to instruct the agent to consult the scoped GitHub MCP tools — no file pre-fetch, citations come from the agent's own tool calls (PR 7.1 ingest path).
 
 ### Phase 8
 - [ ] Feature flags OFF → council mode, capability enforcement, new citations hidden
@@ -330,7 +353,7 @@ Similar per-phase lint, test, build gates (listed in migration-notes.md).
 | Phase 4 | 3 | ⏳ Pending | — |
 | Phase 5 | 2 | ⏳ Pending | — |
 | Phase 6 | 1 | ⏳ Pending | — |
-| Phase 7 | 2 | 🟡 PR 7.1 landed; PR 7.2 pending | — |
+| Phase 7 | 2 | ✅ Both PRs landed | — |
 | Phase 8 | 1 | ⏳ Pending | — |
 
 ---

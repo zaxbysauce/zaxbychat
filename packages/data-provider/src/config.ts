@@ -886,10 +886,24 @@ export type TStartupConfig = {
       isOAuth?: boolean;
       startup?: boolean;
       iconPath?: string;
+      /**
+       * Phase 7 PR 7.2 — first-class source-provider marker.
+       * Mirrored from `MCPOptions.kind`; the frontend filters servers
+       * by this field to surface the GitHub context picker only when a
+       * `kind: 'github'` server is configured.
+       */
+      kind?: 'github';
     }
   >;
   mcpPlaceholder?: string;
   conversationImportMaxFileSize?: number;
+  /**
+   * Phase 7 PR 7.2 — runtime feature-flag mirror so the frontend can
+   * render-gate the GitHub context picker. Server reads
+   * `process.env.GITHUB_MCP_FIRST_CLASS` and sets this true when
+   * truthy. Default-off; absence implies false.
+   */
+  githubFirstClassEnabled?: boolean;
 };
 
 export enum OCRStrategy {

@@ -11,6 +11,7 @@ import type {
 import type { SettingDefinition } from './generate';
 import type { TMinimalFeedback } from './feedback';
 import type { CouncilAgentSpec, SynthesisStrategy } from './council';
+import type { GithubContextSelection } from './types/github';
 import type { ContentTypes } from './types/runs';
 import type { Agent } from './types/assistants';
 
@@ -120,6 +121,8 @@ export type TPayload = Partial<TMessage> &
     councilAgents?: CouncilAgentSpec[];
     /** Phase 4 synthesis strategy. Ignored when councilAgents is empty/undefined. */
     councilStrategy?: SynthesisStrategy;
+    /** Phase 7 PR 7.2 — single GitHub context attached by the picker. */
+    githubContext?: GithubContextSelection;
   };
 
 export type TEditedContent =
@@ -153,6 +156,8 @@ export type TSubmission = {
   councilAgents?: CouncilAgentSpec[];
   /** Phase 4 synthesis strategy. Ignored when councilAgents is empty/undefined. */
   councilStrategy?: SynthesisStrategy;
+  /** Phase 7 PR 7.2 — single GitHub context attached by the picker. */
+  githubContext?: GithubContextSelection;
 };
 
 export type EventSubmission = Omit<TSubmission, 'initialResponse'> & { initialResponse: TMessage };

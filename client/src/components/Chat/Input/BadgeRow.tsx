@@ -21,6 +21,7 @@ import FileSearch from './FileSearch';
 import Artifacts from './Artifacts';
 import MCPSelect from './MCPSelect';
 import WebSearch from './WebSearch';
+import { GitHubContextButton } from './GitHubContext';
 import store from '~/store';
 
 interface BadgeRowProps {
@@ -375,6 +376,7 @@ function BadgeRow({
             <FileSearch />
             <Artifacts />
             <MCPSelect />
+            <GitHubContextButton />
           </>
         )}
         {ghostBadge && (

@@ -1,5 +1,5 @@
 import type { IUser, AppConfig } from '@librechat/data-schemas';
-import type { TEndpointOption } from 'librechat-data-provider';
+import type { TEndpointOption, GithubContextSelection } from 'librechat-data-provider';
 import type { Request } from 'express';
 
 /**
@@ -16,6 +16,12 @@ export type RequestBody = {
   model?: string;
   key?: string;
   endpointOption?: Partial<TEndpointOption>;
+  /**
+   * Phase 7 PR 7.2 — selected GitHub context attached by the user via the
+   * frontend picker. Validated by `githubContextSelectionSchema` in
+   * `packages/api/src/agents/initialize.ts`. Single-context per request.
+   */
+  githubContext?: GithubContextSelection;
 };
 
 export type ServerRequest = Request<unknown, unknown, RequestBody> & {

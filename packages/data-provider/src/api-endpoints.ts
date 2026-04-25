@@ -277,6 +277,14 @@ export const mcp = {
 
 export const mcpServer = (serverName: string) => `${BASE_URL}/api/mcp/servers/${serverName}`;
 
+/**
+ * Phase 7 PR 7.2 — picker tool-call endpoint. Hard-gated server-side
+ * to GitHub-only / allowlist-only behavior; the path is generic for
+ * routing.
+ */
+export const mcpToolCall = (serverName: string, toolName: string) =>
+  `${BASE_URL}/api/mcp/${encodeURIComponent(serverName)}/tools/${encodeURIComponent(toolName)}/call`;
+
 export const revertAgentVersion = (agent_id: string) => `${agents({ path: `${agent_id}/revert` })}`;
 
 export const files = () => `${BASE_URL}/api/files`;
