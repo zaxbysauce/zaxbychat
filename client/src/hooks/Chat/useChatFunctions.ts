@@ -29,7 +29,7 @@ import type { TAskFunction, ExtendedFile } from '~/common';
 import useSetFilesToDelete from '~/hooks/Files/useSetFilesToDelete';
 import useGetSender from '~/hooks/Conversations/useGetSender';
 import { logger, createDualMessageContent } from '~/utils';
-import store, { useGetEphemeralAgent } from '~/store';
+import store, { useGetEphemeralAgent, githubContextSelectionState } from '~/store';
 import { startupConfigKey } from '~/data-provider';
 import useUserKey from '~/hooks/Input/useUserKey';
 import { useAuthContext } from '~/hooks';
@@ -75,6 +75,8 @@ export default function useChatFunctions({
   const setIsSubmitting = useSetRecoilState(store.isSubmittingFamily(index));
   const setShowStopButton = useSetRecoilState(store.showStopButtonByIndex(index));
   const resetLatestMultiMessage = useResetRecoilState(store.latestMessageFamily(index + 1));
+  const githubContext = useRecoilValue(githubContextSelectionState);
+  const resetGithubContext = useResetRecoilState(githubContextSelectionState);
 
   const ask: TAskFunction = (
     {
@@ -336,6 +338,7 @@ export default function useChatFunctions({
       addedConvo,
       councilAgents,
       councilStrategy,
+      ...(githubContext ? { githubContext } : {}),
     };
 
     if (isRegenerate) {
@@ -348,6 +351,9 @@ export default function useChatFunctions({
     }
 
     setSubmission(submission);
+    if (githubContext) {
+      resetGithubContext();
+    }
     logger.dir('message_stream', submission, { depth: null });
   };
 

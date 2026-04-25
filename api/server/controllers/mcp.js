@@ -12,11 +12,101 @@ const {
   redactAllServerSecrets,
   isMCPDomainNotAllowedError,
   isMCPInspectionFailedError,
+  isGithubFirstClassEnabled,
+  validatePickerToolRequest,
+  PICKER_TOOL_TIMEOUT_MS,
 } = require('@librechat/api');
 const { Constants, MCPServerUserInputSchema } = require('librechat-data-provider');
 const { resolveConfigServers, resolveAllMcpConfigs } = require('~/server/services/MCP');
 const { cacheMCPServerTools, getMCPServerTools } = require('~/server/services/Config');
-const { getMCPManager, getMCPServersRegistry } = require('~/config');
+const { getMCPManager, getMCPServersRegistry, getFlowStateManager } = require('~/config');
+const { findToken, createToken, updateToken, deleteTokens } = require('~/models');
+
+/**
+ * Phase 7 PR 7.2 (D-P7-9 lock) — picker tool-call endpoint.
+ *
+ * `POST /api/mcp/:serverName/tools/:toolName/call` — synchronous,
+ * GitHub-only, allowlist-only, hard-timeout MCP tool invocation used by
+ * the GitHub context picker UI to autocomplete repos / list refs / list
+ * PRs / list issues. Path is generic for routing; behavior is
+ * GitHub-only by enforcement (404 for non-`kind:'github'` servers,
+ * 403 for non-allowlisted tools).
+ *
+ * Hard gates (fail-closed):
+ *   1) `GITHUB_MCP_FIRST_CLASS=true`                       → else 404.
+ *   2) Resolved server config has `kind: 'github'`         → else 404.
+ *   3) Tool name is in `GITHUB_MCP_PICKER_ALLOWLIST`       → else 403.
+ *   4) Args body ≤ 8KB                                     → else 413.
+ *   5) `PICKER_TOOL_TIMEOUT_MS` AbortController            → else 504.
+ *
+ * No freeform tool invocation; no streaming; no event emission.
+ */
+const callPickerTool = async (req, res) => {
+  const userId = req.user?.id;
+  const { serverName, toolName } = req.params;
+  const argsRaw = req.body?.args ?? {};
+  const argByteLength =
+    typeof argsRaw === 'object' && argsRaw !== null
+      ? Buffer.byteLength(JSON.stringify(argsRaw), 'utf-8')
+      : 0;
+
+  let serverConfig;
+  if (typeof serverName === 'string' && userId) {
+    try {
+      serverConfig = await getMCPServersRegistry().getServerConfig(serverName, userId);
+    } catch (err) {
+      logger.warn(`[callPickerTool] registry lookup failed for ${serverName}:`, err?.message);
+    }
+  }
+
+  const validation = validatePickerToolRequest({
+    flagEnabled: isGithubFirstClassEnabled(),
+    userId,
+    serverName,
+    toolName,
+    args: argsRaw,
+    serverConfig,
+    argByteLength,
+  });
+  if (!validation.ok) {
+    return res.status(validation.status).json({ message: validation.message });
+  }
+
+  const abort = new AbortController();
+  const timeoutId = setTimeout(() => abort.abort(), PICKER_TOOL_TIMEOUT_MS);
+  try {
+    const mcpManager = getMCPManager();
+    const flowManager = getFlowStateManager();
+    const result = await mcpManager.callTool({
+      serverName,
+      serverConfig: validation.serverConfig,
+      toolName,
+      provider: 'openai',
+      toolArguments: argsRaw,
+      options: { signal: abort.signal },
+      user: req.user,
+      requestBody: undefined,
+      flowManager,
+      tokenMethods: { findToken, createToken, updateToken, deleteTokens },
+      oauthStart: async () => {
+        throw new Error('OAuth required — connect the GitHub MCP server before using the picker');
+      },
+      oauthEnd: async () => {},
+    });
+    return res.status(200).json({ result });
+  } catch (err) {
+    if (err?.name === 'AbortError' || abort.signal.aborted) {
+      return res.status(504).json({ message: 'GitHub MCP tool call timed out' });
+    }
+    logger.warn(
+      `[callPickerTool] tool ${toolName} on ${serverName} failed:`,
+      err?.message ?? err,
+    );
+    return res.status(502).json({ message: err?.message ?? 'GitHub MCP tool call failed' });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
 
 /**
  * Handles MCP-specific errors and sends appropriate HTTP responses.
@@ -311,4 +401,5 @@ module.exports = {
   getMCPServerById,
   updateMCPServerController,
   deleteMCPServerController,
+  callPickerTool,
 };

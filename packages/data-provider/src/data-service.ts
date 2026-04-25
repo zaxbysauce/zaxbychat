@@ -582,6 +582,19 @@ export const getMCPServers = async (): Promise<mcp.MCPServersListResponse> => {
 };
 
 /**
+ * Phase 7 PR 7.2 — invokes a hard-gated GitHub MCP picker tool.
+ * Server enforces flag + `kind: 'github'` + allowlist; on failure the
+ * server returns 4xx and `request.post` throws with the response.
+ */
+export const callMcpPickerTool = async (
+  serverName: string,
+  toolName: string,
+  args: Record<string, unknown> = {},
+): Promise<{ result: unknown }> => {
+  return request.post(endpoints.mcpToolCall(serverName, toolName), { args });
+};
+
+/**
  * Get a single MCP server by ID
  */
 export const getMCPServer = async (serverName: string): Promise<mcp.MCPServerDBObjectResponse> => {

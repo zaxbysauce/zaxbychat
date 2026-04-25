@@ -82,6 +82,8 @@ function buildSharedPayload() {
     allowAccountDeletion:
       process.env.ALLOW_ACCOUNT_DELETION === undefined ||
       isEnabled(process.env.ALLOW_ACCOUNT_DELETION),
+    /** Phase 7 PR 7.2 — frontend mirror of the GitHub first-class flag (default-off). */
+    githubFirstClassEnabled: isEnabled(process.env.GITHUB_MCP_FIRST_CLASS),
   };
 
   const minPasswordLength = parseInt(process.env.MIN_PASSWORD_LENGTH, 10);
