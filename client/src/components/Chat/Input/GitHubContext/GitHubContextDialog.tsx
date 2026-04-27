@@ -10,10 +10,7 @@ import {
   OGDialogContent,
 } from '@librechat/client';
 import { githubContextSelectionSchema } from 'librechat-data-provider';
-import type {
-  GithubContextSelection,
-  GithubContextItemType,
-} from 'librechat-data-provider';
+import type { GithubContextSelection, GithubContextItemType } from 'librechat-data-provider';
 import { useGithubMcpServers } from '~/hooks/MCP/useGithubFirstClass';
 import { useLocalize } from '~/hooks';
 import type { TranslationKeys } from '~/hooks';
@@ -53,9 +50,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
   const localize = useLocalize();
   const githubServers = useGithubMcpServers();
 
-  const [serverName, setServerName] = useState<string>(
-    githubServers[0]?.serverName ?? '',
-  );
+  const [serverName, setServerName] = useState<string>(githubServers[0]?.serverName ?? '');
   const [repo, setRepo] = useState('');
   const [refValue, setRefValue] = useState('');
   const [itemType, setItemType] = useState<GithubContextItemType>('file');
@@ -106,9 +101,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
       <OGDialog open={open} onOpenChange={onOpenChange}>
         <OGDialogContent className="w-11/12 max-w-md">
           <OGDialogHeader>
-            <OGDialogTitle>
-              {localize('com_ui_github_context_select')}
-            </OGDialogTitle>
+            <OGDialogTitle>{localize('com_ui_github_context_select')}</OGDialogTitle>
           </OGDialogHeader>
           <p className="text-sm text-text-secondary">
             {localize('com_ui_github_context_no_servers')}
@@ -127,9 +120,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
     <OGDialog open={open} onOpenChange={onOpenChange}>
       <OGDialogContent className="w-11/12 max-w-lg">
         <OGDialogHeader>
-          <OGDialogTitle>
-            {localize('com_ui_github_context_select')}
-          </OGDialogTitle>
+          <OGDialogTitle>{localize('com_ui_github_context_select')}</OGDialogTitle>
         </OGDialogHeader>
         <div className="flex flex-col gap-3 py-2">
           {githubServers.length > 1 && (
@@ -153,9 +144,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
             </div>
           )}
           <div>
-            <Label htmlFor="github-context-repo">
-              {localize('com_ui_github_context_repo')}
-            </Label>
+            <Label htmlFor="github-context-repo">{localize('com_ui_github_context_repo')}</Label>
             <Input
               id="github-context-repo"
               placeholder={localize('com_ui_github_context_repo_placeholder')}
@@ -165,9 +154,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
             />
           </div>
           <div>
-            <Label htmlFor="github-context-ref">
-              {localize('com_ui_github_context_ref')}
-            </Label>
+            <Label htmlFor="github-context-ref">{localize('com_ui_github_context_ref')}</Label>
             <Input
               id="github-context-ref"
               placeholder="main"
@@ -240,9 +227,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
           )}
           {(itemType === 'pr' || itemType === 'issue' || itemType === 'commit') && (
             <div>
-              <Label htmlFor="github-context-item-id">
-                {localize(ID_LABEL_KEYS[itemType])}
-              </Label>
+              <Label htmlFor="github-context-item-id">{localize(ID_LABEL_KEYS[itemType])}</Label>
               <Input
                 id="github-context-item-id"
                 placeholder={itemType === 'commit' ? 'abc1234' : '42'}
@@ -255,7 +240,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
           {validationError && (
             <p
               role="alert"
-              className="text-sm text-status-error"
+              className="text-status-error text-sm"
               data-testid="github-context-validation-error"
             >
               {validationError}
@@ -266,9 +251,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
           <Button onClick={() => onOpenChange(false)} variant="outline">
             {localize('com_ui_cancel')}
           </Button>
-          <Button onClick={onAttach}>
-            {localize('com_ui_github_context_attach')}
-          </Button>
+          <Button onClick={onAttach}>{localize('com_ui_github_context_attach')}</Button>
         </OGDialogFooter>
       </OGDialogContent>
     </OGDialog>

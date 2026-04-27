@@ -10,10 +10,7 @@ import {
   OGDialogFooter,
   OGDialogContent,
 } from '@librechat/client';
-import {
-  customEndpointConfigSchema,
-  customEndpointCapabilities,
-} from 'librechat-data-provider';
+import { customEndpointConfigSchema, customEndpointCapabilities } from 'librechat-data-provider';
 import type {
   TCustomEndpointConfig,
   TCustomEndpointResponse,
@@ -104,9 +101,7 @@ function buildConfig(state: FormState): TCustomEndpointConfig {
     models: { default: defaults.length > 0 ? defaults : ['default'] },
     ...(state.iconURL ? { iconURL: state.iconURL } : {}),
     ...(state.modelDisplayLabel ? { modelDisplayLabel: state.modelDisplayLabel } : {}),
-    ...(state.capabilities.size > 0
-      ? { capabilities: Array.from(state.capabilities) }
-      : {}),
+    ...(state.capabilities.size > 0 ? { capabilities: Array.from(state.capabilities) } : {}),
   } as TCustomEndpointConfig;
 }
 
@@ -201,8 +196,8 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
       onOpenChange(false);
     } catch (err) {
       const reason =
-        (err as { response?: { data?: { message?: string } }; message?: string })?.response
-          ?.data?.message ??
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+          ?.message ??
         (err as { message?: string })?.message ??
         'Save failed';
       setError(reason);
@@ -324,9 +319,7 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
               />
             </div>
             <div>
-              <Label htmlFor="ce-display">
-                {localize('com_ui_custom_endpoint_display_label')}
-              </Label>
+              <Label htmlFor="ce-display">{localize('com_ui_custom_endpoint_display_label')}</Label>
               <Input
                 id="ce-display"
                 value={state.modelDisplayLabel}
