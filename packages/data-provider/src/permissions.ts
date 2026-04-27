@@ -60,6 +60,15 @@ export enum PermissionTypes {
    * Type for Remote Agent (API) Permissions
    */
   REMOTE_AGENTS = 'REMOTE_AGENTS',
+  /**
+   * Type for UI-managed custom AI endpoint permissions (Phase 9).
+   *
+   * Endpoints declared in `librechat.yaml.endpoints.custom` are admin-as-code
+   * and always available; this permission gates the *DB-backed* CRUD surface
+   * exposed in the UI. Defaults grant USE/CREATE/UPDATE/DELETE to both
+   * USER and ADMIN roles per the single-user-offline deployment posture.
+   */
+  CUSTOM_ENDPOINTS = 'CUSTOM_ENDPOINTS',
 }
 
 /**
@@ -82,6 +91,7 @@ export const PERMISSION_TYPE_INTERFACE_FIELDS: Record<PermissionTypes, string> =
   [PermissionTypes.MARKETPLACE]: 'marketplace',
   [PermissionTypes.MCP_SERVERS]: 'mcpServers',
   [PermissionTypes.REMOTE_AGENTS]: 'remoteAgents',
+  [PermissionTypes.CUSTOM_ENDPOINTS]: 'customEndpoints',
 };
 
 /** Set of interface config field names that correspond to role permissions. */
@@ -218,6 +228,13 @@ export const remoteAgentsPermissionsSchema = z.object({
 });
 export type TRemoteAgentsPermissions = z.infer<typeof remoteAgentsPermissionsSchema>;
 
+export const customEndpointsPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true),
+  [Permissions.CREATE]: z.boolean().default(true),
+  [Permissions.UPDATE]: z.boolean().default(true),
+});
+export type TCustomEndpointsPermissions = z.infer<typeof customEndpointsPermissionsSchema>;
+
 // Define a single permissions schema that holds all permission types.
 export const permissionsSchema = z.object({
   [PermissionTypes.PROMPTS]: promptPermissionsSchema,
@@ -234,4 +251,5 @@ export const permissionsSchema = z.object({
   [PermissionTypes.FILE_CITATIONS]: fileCitationsPermissionsSchema,
   [PermissionTypes.MCP_SERVERS]: mcpServersPermissionsSchema,
   [PermissionTypes.REMOTE_AGENTS]: remoteAgentsPermissionsSchema,
+  [PermissionTypes.CUSTOM_ENDPOINTS]: customEndpointsPermissionsSchema,
 });

@@ -13,6 +13,8 @@ import { createAgentCategoryMethods, type AgentCategoryMethods } from './agentCa
 import { createAgentApiKeyMethods, type AgentApiKeyMethods } from './agentApiKey';
 /* MCP Servers */
 import { createMCPServerMethods, type MCPServerMethods } from './mcpServer';
+/* Phase 9 — DB-backed custom endpoints */
+import { createCustomEndpointMethods, type CustomEndpointMethods } from './customEndpoint';
 /* Plugin Auth */
 import { createPluginAuthMethods, type PluginAuthMethods } from './pluginAuth';
 /* Permissions */
@@ -64,6 +66,7 @@ export type AllMethods = UserMethods &
   AgentCategoryMethods &
   AgentApiKeyMethods &
   MCPServerMethods &
+  CustomEndpointMethods &
   UserGroupMethods &
   AclEntryMethods &
   SystemGrantMethods &
@@ -181,6 +184,7 @@ export function createMethods(
     ...createAgentCategoryMethods(mongoose),
     ...createAgentApiKeyMethods(mongoose),
     ...createMCPServerMethods(mongoose),
+    ...createCustomEndpointMethods(mongoose),
     ...createAccessRoleMethods(mongoose),
     ...createUserGroupMethods(mongoose),
     ...aclEntryMethods,
@@ -221,6 +225,7 @@ export type {
   AgentCategoryMethods,
   AgentApiKeyMethods,
   MCPServerMethods,
+  CustomEndpointMethods,
   UserGroupMethods,
   AclEntryMethods,
   SystemGrantMethods,
