@@ -285,6 +285,16 @@ export const mcpServer = (serverName: string) => `${BASE_URL}/api/mcp/servers/${
 export const mcpToolCall = (serverName: string, toolName: string) =>
   `${BASE_URL}/api/mcp/${encodeURIComponent(serverName)}/tools/${encodeURIComponent(toolName)}/call`;
 
+/** Phase 9 — DB-backed UI-managed custom endpoints. */
+export const customEndpoints = {
+  list: `${BASE_URL}/api/custom-endpoints`,
+  create: `${BASE_URL}/api/custom-endpoints`,
+  test: `${BASE_URL}/api/custom-endpoints/test`,
+};
+
+export const customEndpointByName = (name: string) =>
+  `${BASE_URL}/api/custom-endpoints/${encodeURIComponent(name)}`;
+
 export const revertAgentVersion = (agent_id: string) => `${agents({ path: `${agent_id}/revert` })}`;
 
 export const files = () => `${BASE_URL}/api/files`;

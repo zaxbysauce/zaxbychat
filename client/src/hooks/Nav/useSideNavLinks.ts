@@ -19,6 +19,7 @@ import {
 import type { TInterfaceConfig, TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import MCPBuilderPanel from '~/components/SidePanel/MCPBuilder/MCPBuilderPanel';
+import { CustomEndpointsPanel } from '~/components/SidePanel/CustomEndpoints';
 import AgentPanelSwitch from '~/components/SidePanel/Agents/AgentPanelSwitch';
 import BookmarkPanel from '~/components/SidePanel/Bookmarks/BookmarkPanel';
 import PanelSwitch from '~/components/SidePanel/Builder/PanelSwitch';
@@ -76,6 +77,10 @@ export default function useSideNavLinks({
   const hasAccessToCreateMCP = useHasAccess({
     permissionType: PermissionTypes.MCP_SERVERS,
     permission: Permissions.CREATE,
+  });
+  const hasAccessToUseCustomEndpoints = useHasAccess({
+    permissionType: PermissionTypes.CUSTOM_ENDPOINTS,
+    permission: Permissions.USE,
   });
   const { availableMCPServers } = useMCPServerManager();
 
@@ -182,6 +187,16 @@ export default function useSideNavLinks({
       });
     }
 
+    if (hasAccessToUseCustomEndpoints) {
+      links.push({
+        title: 'com_ui_custom_endpoints',
+        label: '',
+        icon: OpenAIMinimalIcon,
+        id: 'custom-endpoints',
+        Component: CustomEndpointsPanel,
+      });
+    }
+
     if (includeHidePanel && hidePanel) {
       links.push({
         title: 'com_sidepanel_hide_panel',
@@ -208,6 +223,7 @@ export default function useSideNavLinks({
     availableMCPServers,
     hasAccessToUseMCPSettings,
     hasAccessToCreateMCP,
+    hasAccessToUseCustomEndpoints,
     includeHidePanel,
     hidePanel,
   ]);

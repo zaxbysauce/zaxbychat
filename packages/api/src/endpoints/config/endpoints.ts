@@ -17,6 +17,13 @@ export interface EndpointsConfigDeps {
   getAppConfig: (params: { role?: string | null; tenantId?: string }) => Promise<AppConfig>;
   loadDefaultEndpointsConfig: (appConfig: AppConfig) => Promise<DefaultEndpointsResult>;
   loadCustomEndpointsConfig?: (custom: unknown) => TCustomEndpointsConfig | undefined;
+  /*
+   * Phase 9 review M8: the DB-backed custom-endpoint merge runs in
+   * `attachDbCustomEndpoints` middleware (composed into
+   * `configMiddleware`). By the time `getEndpointsConfig` is called,
+   * `req.config.endpoints.custom` already contains the merged list.
+   * No additional DI hook is needed here.
+   */
 }
 
 export function createEndpointsConfigService(deps: EndpointsConfigDeps) {

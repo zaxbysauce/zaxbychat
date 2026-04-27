@@ -45,6 +45,11 @@ function hasExplicitConfig(
       return interfaceConfig?.mcpServers !== undefined;
     case PermissionTypes.REMOTE_AGENTS:
       return interfaceConfig?.remoteAgents !== undefined;
+    case PermissionTypes.CUSTOM_ENDPOINTS:
+      return (
+        (interfaceConfig as { customEndpoints?: unknown } | undefined)?.customEndpoints !==
+        undefined
+      );
     default:
       return false;
   }
@@ -430,6 +435,23 @@ export async function updateInterfacePermissions({
               ),
             }
           : {}),
+      },
+      [PermissionTypes.CUSTOM_ENDPOINTS]: {
+        [Permissions.USE]: getPermissionValue(
+          undefined,
+          defaultPerms[PermissionTypes.CUSTOM_ENDPOINTS]?.[Permissions.USE],
+          true,
+        ),
+        [Permissions.CREATE]: getPermissionValue(
+          undefined,
+          defaultPerms[PermissionTypes.CUSTOM_ENDPOINTS]?.[Permissions.CREATE],
+          true,
+        ),
+        [Permissions.UPDATE]: getPermissionValue(
+          undefined,
+          defaultPerms[PermissionTypes.CUSTOM_ENDPOINTS]?.[Permissions.UPDATE],
+          true,
+        ),
       },
     };
 

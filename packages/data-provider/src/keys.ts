@@ -61,6 +61,8 @@ export enum QueryKeys {
   /* MCP Servers */
   mcpServers = 'mcpServers',
   mcpServer = 'mcpServer',
+  /* Phase 9 — DB-backed custom endpoints */
+  customEndpoints = 'customEndpoints',
   /* Active Jobs */
   activeJobs = 'activeJobs',
   /* Agent API Keys */
