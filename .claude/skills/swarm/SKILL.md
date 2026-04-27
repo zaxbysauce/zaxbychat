@@ -12,19 +12,13 @@ If arguments are provided, enable swarm mode first and then execute that task us
 
 Argument handling:
 - If no arguments are provided: only enable swarm mode.
-- If the first word of `$ARGUMENTS` is a **known plugin subcommand** (see list below): do NOT treat it as a swarm task. Instead, tell the user to run it as a slash command directly (e.g., `/swarm close`, `/swarm handoff`). These are OpenCode plugin commands handled by the swarm plugin's command system, not tasks for the swarm workflow. Do NOT try to interpret or execute them yourself.
-- Otherwise: enable swarm mode, then treat `$ARGUMENTS` as the task to execute immediately.
-
-Known plugin subcommands (do NOT interpret these as tasks):
-<!-- Keep in sync with COMMAND_REGISTRY in src/commands/registry.ts -->
-`status`, `plan`, `agents`, `history`, `config`, `evidence`, `handoff`, `archive`, `diagnose`, `preflight`, `sync-plan`, `benchmark`, `export`, `reset`, `rollback`, `retrieve`, `clarify`, `analyze`, `specify`, `brainstorm`, `qa-gates`, `dark-matter`, `knowledge`, `curate`, `turbo`, `full-auto`, `write-retro`, `reset-session`, `simulate`, `promote`, `checkpoint`, `close`
+- If arguments are provided: enable swarm mode, then treat `$ARGUMENTS` as the task to execute immediately.
 
 Examples:
-- `/swarm` — enable swarm mode only
-- `/swarm implement OAuth login without breaking existing session handling` — enable swarm mode, then execute the task
-- `/swarm fix the failing auth refresh tests and verify the session flow` — enable swarm mode, then execute the task
-- `/swarm close` — this is a plugin subcommand; tell the user it will be handled by the plugin command system
-- `/swarm handoff` — this is a plugin subcommand; tell the user it will be handled by the plugin command system
+- `/swarm`
+- `/swarm implement OAuth login without breaking existing session handling`
+- `/swarm fix the failing auth refresh tests and verify the session flow`
+- `/swarm refactor this parser safely and check for regressions`
 
 ## Goal
 Turn Claude Code into a swarm-like orchestrator while preserving Claude Code speed advantages.
@@ -55,3 +49,80 @@ That means:
 
 If a workflow step does not materially improve quality, correctness, or trust, keep it lightweight or skip it.
 If a workflow step prevents real bugs from shipping, keep it even if it costs time.
+
+## Default triage model
+Use this default escalation ladder:
+1. Parallel exploration and mapping for breadth
+2. Parallel specialist review for disjoint concerns
+3. Independent reviewer validation for findings that are high-risk, ambiguous, cross-file, or likely false-positive-prone
+4. Critic challenge only for reviewer-confirmed high-impact findings or when confidence is still not high enough
+
+Do not force every task through every layer if the extra layer adds cost but not quality.
+Do force high-risk work through the full ladder.
+
+High-risk work includes:
+- auth, authz, permissions, identity, session handling
+- payments, billing, data mutation, destructive actions
+- dependency changes, install scripts, lockfile changes
+- public API changes, schema changes, migrations
+- concurrency, retries, state machines, caching, queueing
+- security-sensitive parsing, file access, subprocesses, secrets
+
+Lower-risk work can use a lighter path if evidence is strong:
+- docs-only changes
+- localized refactors with strong existing test coverage
+- small UI copy changes
+- isolated low-risk cleanup with no behavior change
+
+## Enablement steps
+1. Create `.claude/session/` if it does not exist.
+2. Create or overwrite `.claude/session/swarm-mode.md` with the session contract.
+3. Confirm that swarm mode is now enabled for this session.
+4. For the user's next complex task, follow the swarm-mode contract automatically unless the user disables it.
+
+## How to behave after activation
+For subsequent complex tasks in this session:
+- spawn subagents in parallel for disjoint scopes
+- use one or more reviewer subagents to validate findings from explorer subagents or to validate implementation quality
+- use critic subagents only after reviewer validation, not as the primary false-positive filter
+- synthesize outputs with explicit status labels such as candidate, confirmed, disproved, unverified, or pre-existing when useful
+- keep the main context clean by pushing reading-heavy work into subagents
+
+## If a task argument was provided
+After enabling swarm mode, immediately execute `$ARGUMENTS` using this swarm-like implementation ladder:
+1. Determine exact scope and success criteria.
+2. Launch parallel exploration for disjoint investigation work.
+3. Create a scoped plan.
+4. Implement in coherent units.
+5. Run objective verification.
+6. Use independent reviewer validation where risk justifies it.
+7. Use critic challenge only for high-impact or still-ambiguous results.
+8. Summarize what changed, what was verified, and what risks remain.
+
+Do not treat the presence of `$ARGUMENTS` as permission to skip the swarm-mode contract.
+The task must still follow the quality, speed, and risk-tiering rules above.
+
+## Suggested subagent prompts
+When you need an explorer-style subagent, tell it:
+- map the assigned scope quickly
+- find candidate issues only
+- be broad and suspicious
+- return exact file/line references
+- do not present findings as final truth
+
+When you need a reviewer-style subagent, tell it:
+- validate candidate findings from another subagent
+- be hyper-critical and default to disbelief
+- actively look for mitigating context that disproves each candidate
+- use runtime-aware validation when safe and needed
+- classify each item as CONFIRMED, DISPROVED, UNVERIFIED, or PRE_EXISTING
+
+When you need a critic-style subagent, tell it:
+- challenge reviewer-confirmed findings in small batches
+- look for overclaimed severity, weak evidence, missing sibling-file checks, and poor actionability
+- prefer removal over noisy weak inclusion
+
+## Notes
+- This skill enables swarm mode for the current session by writing a session file.
+- It does not permanently change project behavior.
+- Re-run `/swarm` if needed after clearing or resetting session context.
