@@ -335,19 +335,19 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
             </p>
           )}
           {testStatus.kind === 'ok' && (
-            <p className="text-sm text-status-success" role="status">
+            <p className="text-status-success text-sm" role="status">
               {localize('com_ui_custom_endpoint_test_ok')} — {testStatus.reason}
             </p>
           )}
           {testStatus.kind === 'err' && (
-            <p className="text-sm text-status-error" role="alert">
+            <p className="text-status-error text-sm" role="alert">
               {localize('com_ui_custom_endpoint_test_failed')}: {testStatus.reason}
             </p>
           )}
           {error && (
             <p
               role="alert"
-              className="text-sm text-status-error"
+              className="text-status-error text-sm"
               data-testid="custom-endpoint-error"
             >
               {error}
