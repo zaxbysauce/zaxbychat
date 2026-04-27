@@ -27,6 +27,26 @@ import type { TranslationKeys } from '~/hooks';
 const USER_PROVIDED = 'user_provided';
 
 /**
+ * Surface a 4xx response.data.message verbatim (controllers return
+ * intentional user-facing messages like "name cannot be empty"). For
+ * 5xx or transport errors, return null so callers can show a generic
+ * fallback instead of leaking server stack traces (e.g. "getRoleByName
+ * is not a function") to the user.
+ */
+function clientFacingError(err: unknown): string | null {
+  const e = err as {
+    response?: { status?: number; data?: { message?: string } };
+    message?: string;
+  };
+  const status = e?.response?.status;
+  const detail = e?.response?.data?.message;
+  if (typeof status === 'number' && status >= 400 && status < 500 && detail) {
+    return detail;
+  }
+  return null;
+}
+
+/**
  * Static map of capability → localize key. Phase 9 review: the prior
  * dynamic `localize(\`com_ui_capability_${cap}\`)` form fooled the
  * unused-i18n-keys CI check (literal strings are how it greps). The
@@ -157,7 +177,7 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
     } catch (err) {
       setTestStatus({
         kind: 'err',
-        reason: (err as Error)?.message ?? 'Probe failed',
+        reason: clientFacingError(err) ?? localize('com_ui_custom_endpoint_probe_failed'),
       });
     }
   };
@@ -195,12 +215,7 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
       }
       onOpenChange(false);
     } catch (err) {
-      const reason =
-        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
-          ?.message ??
-        (err as { message?: string })?.message ??
-        'Save failed';
-      setError(reason);
+      setError(clientFacingError(err) ?? localize('com_ui_custom_endpoint_save_failed'));
     }
   };
 
@@ -302,6 +317,7 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
                     type="checkbox"
                     checked={state.capabilities.has(cap)}
                     onChange={() => toggleCapability(cap)}
+                    aria-label={localize(CAPABILITY_LABEL_KEYS[cap]) || cap}
                   />
                   <span>{localize(CAPABILITY_LABEL_KEYS[cap]) || cap}</span>
                 </label>
@@ -358,7 +374,11 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {localize('com_ui_cancel')}
           </Button>
-          <Button variant="outline" onClick={onTest} disabled={testStatus.kind === 'pending'}>
+          <Button
+            variant="outline"
+            onClick={onTest}
+            disabled={testStatus.kind === 'pending' || isSaving}
+          >
             {localize('com_ui_custom_endpoint_test_connection')}
           </Button>
           <Button onClick={onSave} disabled={isSaving}>

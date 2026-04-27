@@ -31,6 +31,7 @@ import {
 import { isUserProvided } from '~/utils/common';
 
 const PROBE_TIMEOUT_MS = 5000;
+const PROBE_MAX_BODY_BYTES = 1 * 1024 * 1024;
 
 export interface ProbeOptions {
   /** Override the default 5s timeout (used only for tests). */
@@ -42,6 +43,26 @@ export interface ProbeOptions {
    * this undefined and the global `fetch` is used.
    */
   fetchFn?: typeof fetch;
+}
+
+async function readCappedBody(res: Response, capBytes: number): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) return await res.text();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > capBytes) {
+      reader.cancel().catch(() => undefined);
+      throw new Error('PROBE_BODY_TOO_LARGE');
+    }
+    buffer += decoder.decode(value, { stream: true });
+  }
+  buffer += decoder.decode();
+  return buffer;
 }
 
 /**
@@ -118,11 +139,29 @@ export async function probeCustomEndpoint(
         durationMs,
       };
     }
+    const contentLength = Number(res.headers.get('content-length'));
+    if (Number.isFinite(contentLength) && contentLength > PROBE_MAX_BODY_BYTES) {
+      return {
+        ok: false,
+        reason: `Response body exceeds ${PROBE_MAX_BODY_BYTES} byte cap`,
+        status: res.status,
+        durationMs,
+      };
+    }
     let modelsDetected: number | undefined;
     try {
-      const body = (await res.json()) as { data?: unknown[] };
+      const text = await readCappedBody(res, PROBE_MAX_BODY_BYTES);
+      const body = JSON.parse(text) as { data?: unknown[] };
       if (Array.isArray(body?.data)) modelsDetected = body.data.length;
-    } catch {
+    } catch (parseErr) {
+      if ((parseErr as Error)?.message === 'PROBE_BODY_TOO_LARGE') {
+        return {
+          ok: false,
+          reason: `Response body exceeds ${PROBE_MAX_BODY_BYTES} byte cap`,
+          status: res.status,
+          durationMs,
+        };
+      }
       // Non-OpenAI-compatible JSON; the 200 still counts as success.
     }
     return { ok: true, durationMs, modelsDetected };

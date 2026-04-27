@@ -65,8 +65,10 @@ export enum PermissionTypes {
    *
    * Endpoints declared in `librechat.yaml.endpoints.custom` are admin-as-code
    * and always available; this permission gates the *DB-backed* CRUD surface
-   * exposed in the UI. Defaults grant USE/CREATE/UPDATE/DELETE to both
-   * USER and ADMIN roles per the single-user-offline deployment posture.
+   * exposed in the UI. Defaults grant USE/CREATE/UPDATE to both USER and
+   * ADMIN roles per the single-user-offline deployment posture; DELETE
+   * shares the UPDATE gate at the route layer (review M1) plus a
+   * controller-level owner-or-admin check.
    */
   CUSTOM_ENDPOINTS = 'CUSTOM_ENDPOINTS',
 }
