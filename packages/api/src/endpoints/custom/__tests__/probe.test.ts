@@ -200,3 +200,34 @@ describe('probeCustomEndpoint — anti-exfil (review H3)', () => {
     expect(url).not.toContain('/models/models');
   });
 });
+
+describe('probeCustomEndpoint — body size cap', () => {
+  it('rejects when content-length header exceeds the cap', async () => {
+    const fetchFn = jest.fn(
+      async () =>
+        new Response('{"data":[]}', {
+          status: 200,
+          headers: { 'content-length': String(2 * 1024 * 1024) },
+        }),
+    );
+    const result = await probeCustomEndpoint(validConfig(), {
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toMatch(/byte cap/);
+    }
+  });
+
+  it('rejects when streamed body exceeds the cap even without content-length', async () => {
+    const oversized = 'x'.repeat(2 * 1024 * 1024);
+    const fetchFn = jest.fn(async () => new Response(oversized, { status: 200 }));
+    const result = await probeCustomEndpoint(validConfig(), {
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toMatch(/byte cap/);
+    }
+  });
+});

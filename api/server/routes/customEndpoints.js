@@ -21,7 +21,12 @@ const { Router } = require('express');
 const { generateCheckAccess } = require('@librechat/api');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 const { requireJwtAuth } = require('~/server/middleware');
-const db = require('~/db');
+// `~/db` exports only `{connectDb, indexSync}`. Role lookups live on
+// `~/models` — the same path used by every sibling route (mcp,
+// memories, tags, prompts). Importing `getRoleByName` from `~/db`
+// makes it `undefined`, and `generateCheckAccess` throws on first
+// authed request with a 500 (Phase 9 follow-up).
+const db = require('~/models');
 const {
   listEndpoints,
   createEndpoint,

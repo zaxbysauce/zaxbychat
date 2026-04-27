@@ -73,7 +73,22 @@ export default function CustomEndpointsPanel() {
     deleteMutation.mutate(record.name);
   };
 
-  if (!hasUseAccess) return null;
+  if (!hasUseAccess) {
+    return (
+      <div
+        className="flex h-auto w-full flex-col px-3 pb-3"
+        role="region"
+        aria-label={localize('com_ui_custom_endpoints')}
+      >
+        <p
+          className="px-2 py-4 text-center text-sm text-text-secondary"
+          data-testid="custom-endpoint-no-access"
+        >
+          {localize('com_ui_custom_endpoint_no_access')}
+        </p>
+      </div>
+    );
+  }
 
   const renderList = () => {
     if (isLoading) {
