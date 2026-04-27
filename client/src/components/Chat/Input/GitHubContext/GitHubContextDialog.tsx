@@ -17,8 +17,23 @@ import type {
 } from 'librechat-data-provider';
 import { useGithubMcpServers } from '~/hooks/MCP/useGithubFirstClass';
 import { useLocalize } from '~/hooks';
+import type { TranslationKeys } from '~/hooks';
 
 const KIND_OPTIONS: GithubContextItemType[] = ['file', 'pr', 'issue', 'commit', 'repo'];
+
+const KIND_LABEL_KEYS: Record<GithubContextItemType, TranslationKeys> = {
+  file: 'com_ui_github_context_kind_file',
+  pr: 'com_ui_github_context_kind_pr',
+  issue: 'com_ui_github_context_kind_issue',
+  commit: 'com_ui_github_context_kind_commit',
+  repo: 'com_ui_github_context_kind_repo',
+};
+
+const ID_LABEL_KEYS: Record<'pr' | 'issue' | 'commit', TranslationKeys> = {
+  pr: 'com_ui_github_context_pr_id',
+  issue: 'com_ui_github_context_issue_id',
+  commit: 'com_ui_github_context_commit_id',
+};
 
 interface Props {
   open: boolean;
@@ -175,7 +190,7 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
             >
               {KIND_OPTIONS.map((k) => (
                 <option key={k} value={k}>
-                  {localize(`com_ui_github_context_kind_${k}`)}
+                  {localize(KIND_LABEL_KEYS[k])}
                 </option>
               ))}
             </select>
@@ -227,14 +242,14 @@ function GitHubContextDialogContent({ open, onOpenChange, onSelect }: Props) {
           {(itemType === 'pr' || itemType === 'issue' || itemType === 'commit') && (
             <div>
               <Label htmlFor="github-context-item-id">
-                {localize(`com_ui_github_context_${itemType}_id`)}
+                {localize(ID_LABEL_KEYS[itemType])}
               </Label>
               <Input
                 id="github-context-item-id"
                 placeholder={itemType === 'commit' ? 'abc1234' : '42'}
                 value={itemId}
                 onChange={(e) => setItemId(e.target.value)}
-                aria-label={localize(`com_ui_github_context_${itemType}_id`)}
+                aria-label={localize(ID_LABEL_KEYS[itemType])}
               />
             </div>
           )}

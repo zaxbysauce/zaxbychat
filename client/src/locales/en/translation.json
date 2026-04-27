@@ -815,7 +815,6 @@
   "com_ui_capability_inferred": "Inferred from model family: {{0}}",
   "com_ui_capability_unknown": "Capability not verified",
   "com_ui_capability_vision_blocked": "{{0}} does not support image input. Remove the image or choose a different model.",
-  "com_ui_capability_vision_unverified": "{{0}} may not support image input. Send anyway?",
   "com_ui_council_add_extra": "Add another model",
   "com_ui_council_budget_approximate": "approximate",
   "com_ui_council_budget_banner": "≈ {{0}} tokens estimated ({{1}} legs + synthesis)",

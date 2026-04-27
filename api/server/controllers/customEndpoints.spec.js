@@ -305,10 +305,7 @@ describe('testEndpoint', () => {
       durationMs: 12,
     });
     const res = buildRes();
-    await testEndpoint(
-      { body: { config: baseConfig() }, user: { id: 'u' } },
-      res,
-    );
+    await testEndpoint({ body: { config: baseConfig() }, user: { id: 'u' } }, res);
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0][0];
     expect(payload.ok).toBe(false);

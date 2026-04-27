@@ -34,9 +34,7 @@ const {
   updateCustomEndpoint,
   deleteCustomEndpoint,
 } = require('~/models');
-const {
-  invalidateDbCustomEndpointsCache,
-} = require('~/server/middleware/config/customEndpoints');
+const { invalidateDbCustomEndpointsCache } = require('~/server/middleware/config/customEndpoints');
 
 const USER_PROVIDED = 'user_provided';
 
@@ -83,10 +81,16 @@ function toResponse(doc, options = {}) {
  */
 function rejectEmptyStringFields(config) {
   if (!config || typeof config !== 'object') return null;
-  if (config.baseURL !== undefined && (typeof config.baseURL !== 'string' || config.baseURL.trim() === '')) {
+  if (
+    config.baseURL !== undefined &&
+    (typeof config.baseURL !== 'string' || config.baseURL.trim() === '')
+  ) {
     return 'baseURL cannot be empty';
   }
-  if (config.apiKey !== undefined && (typeof config.apiKey !== 'string' || config.apiKey.trim() === '')) {
+  if (
+    config.apiKey !== undefined &&
+    (typeof config.apiKey !== 'string' || config.apiKey.trim() === '')
+  ) {
     return 'apiKey cannot be empty';
   }
   if (config.name !== undefined && (typeof config.name !== 'string' || config.name.trim() === '')) {

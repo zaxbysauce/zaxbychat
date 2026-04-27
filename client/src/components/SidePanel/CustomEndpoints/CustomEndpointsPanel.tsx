@@ -47,8 +47,7 @@ export default function CustomEndpointsPanel() {
     if (!searchQuery.trim()) return endpoints;
     const q = searchQuery.toLowerCase();
     return endpoints.filter(
-      (e) =>
-        e.name.toLowerCase().includes(q) || e.config.baseURL.toLowerCase().includes(q),
+      (e) => e.name.toLowerCase().includes(q) || e.config.baseURL.toLowerCase().includes(q),
     );
   }, [endpoints, searchQuery]);
 
@@ -75,6 +74,38 @@ export default function CustomEndpointsPanel() {
   };
 
   if (!hasUseAccess) return null;
+
+  const renderList = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center p-8">
+          <Spinner className="size-6" aria-label={localize('com_ui_loading')} />
+        </div>
+      );
+    }
+    if (filtered.length === 0) {
+      return (
+        <p className="px-2 py-4 text-center text-sm text-text-secondary">
+          {searchQuery
+            ? localize('com_ui_custom_endpoint_none_match')
+            : localize('com_ui_custom_endpoint_empty')}
+        </p>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-2">
+        {filtered.map((endpoint) => (
+          <CustomEndpointCard
+            key={endpoint.name}
+            endpoint={endpoint}
+            canEdit={canEditRow(endpoint)}
+            onEdit={() => onEdit(endpoint)}
+            onDelete={() => onDelete(endpoint)}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-auto w-full flex-col px-3 pb-3">
@@ -107,36 +138,10 @@ export default function CustomEndpointsPanel() {
           )}
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center p-8">
-            <Spinner className="size-6" aria-label={localize('com_ui_loading')} />
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="px-2 py-4 text-center text-sm text-text-secondary">
-            {searchQuery
-              ? localize('com_ui_custom_endpoint_none_match')
-              : localize('com_ui_custom_endpoint_empty')}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {filtered.map((endpoint) => (
-              <CustomEndpointCard
-                key={endpoint.name}
-                endpoint={endpoint}
-                canEdit={canEditRow(endpoint)}
-                onEdit={() => onEdit(endpoint)}
-                onDelete={() => onDelete(endpoint)}
-              />
-            ))}
-          </div>
-        )}
+        {renderList()}
       </div>
 
-      <CustomEndpointDialog
-        open={showDialog}
-        onOpenChange={setShowDialog}
-        existing={editing}
-      />
+      <CustomEndpointDialog open={showDialog} onOpenChange={setShowDialog} existing={editing} />
     </div>
   );
 }

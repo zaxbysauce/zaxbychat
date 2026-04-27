@@ -66,6 +66,11 @@ export interface IRole extends Document {
       [Permissions.SHARE]?: boolean;
       [Permissions.SHARE_PUBLIC]?: boolean;
     };
+    [PermissionTypes.CUSTOM_ENDPOINTS]?: {
+      [Permissions.USE]?: boolean;
+      [Permissions.CREATE]?: boolean;
+      [Permissions.UPDATE]?: boolean;
+    };
   };
   tenantId?: string;
 }
