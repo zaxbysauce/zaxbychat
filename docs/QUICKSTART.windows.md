@@ -59,16 +59,46 @@ endpoints, see [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 ---
 
+## Build the zaxbychat image
+
+> **Critical:** The default `docker-compose.yml` pulls
+> `registry.librechat.ai/danny-avila/librechat-dev:latest` — that's
+> upstream LibreChat, **not** zaxbychat. To run the
+> Perplexity-migration code (council mode, GitHub first-class,
+> normalized citations, etc.) you must build from source via a
+> `docker-compose.override.yml` that points the `api` service at the
+> local `Dockerfile`. The override also mounts `librechat.yaml` into
+> the container — without it, none of the runtime config you put in
+> `librechat.yaml` is visible to the running app.
+
+7. Create `docker-compose.override.yml` with the local-build directive
+   and the `librechat.yaml` mount:
+   ```powershell
+   @"
+   services:
+     api:
+       image: zaxbychat
+       build:
+         context: .
+         target: node
+       volumes:
+       - type: bind
+         source: ./librechat.yaml
+         target: /app/librechat.yaml
+   "@ | Out-File -Encoding utf8 -FilePath docker-compose.override.yml
+   ```
+
 ## Boot
 
-7. From the repo root:
+8. Build and start (first build takes 5–15 minutes; subsequent builds
+   are cached):
    ```powershell
+   docker compose build api
    docker compose up -d
    ```
-   First boot pulls the LibreChat image plus MongoDB, MeiliSearch, and
-   the optional RAG API + vector store. Allow 1–3 minutes the first
-   time.
-8. Tail the API logs while it starts:
+   First run also pulls MongoDB, MeiliSearch, and the optional RAG API
+   + vector store images.
+9. Tail the API logs while it starts:
    ```powershell
    docker compose logs -f api
    ```
@@ -78,23 +108,39 @@ endpoints, see [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 ## Use it
 
-9. Open <http://localhost:3080> in a browser. Register the first user
-   — that account becomes the admin.
-10. Open a chat, pick a model from the endpoint dropdown, and confirm
+10. Open <http://localhost:3080> in a browser. Register the first user
+    — that account becomes the admin.
+11. Open a chat, pick a model from the endpoint dropdown, and confirm
     a basic round-trip works.
+
+### Confirm you're running zaxbychat (not upstream LibreChat)
+
+```powershell
+docker compose exec api cat /app/CHANGELOG.md | Select-Object -First 3
+```
+
+The first line should be `# Changelog`; line 3 should mention the
+Perplexity-style migration. If you see "No such file or directory" or
+upstream-LibreChat content, your `docker-compose.override.yml` is not
+being picked up — confirm it's in the repo root next to
+`docker-compose.yml`, then `docker compose down && docker compose build api && docker compose up -d`.
 
 ---
 
-## Verify the Perplexity-migration features
+## Enable and verify the Perplexity-migration features
 
-Once a basic chat works, verify the v0.9.0 surfaces:
+Most surfaces are activated by entries in `librechat.yaml`. Reload
+after every edit with `docker compose restart api`.
 
-| Feature | How to verify |
-|---|---|
-| **Capability gating** (Phase 2) | Select a vision-capable model — image-attach affordance appears; select a text-only model — it disappears. |
-| **Council mode** (Phase 4) | In `librechat.yaml`, set `interface.council: true`, then `docker compose restart api`. The composer shows a "Council" toggle and per-leg model picker. |
-| **Citations** (Phase 5) | Any web-search or file-search tool call now persists `sources[]` on the assistant message; UI shows clickable inline anchors and a sources panel. |
-| **GitHub first-class** (Phase 7) | Add a `kind: 'github'` MCP server to `librechat.yaml.mcpServers` (commented example provided). The chat composer shows a "GitHub Context" picker; `get_file_contents` and friends emit `kindSpecific.kind: 'github'` citations. |
+| Feature | How to enable | How to verify |
+|---|---|---|
+| **Custom AI providers** (always available) | `endpoints.custom: [{ name: "...", apiKey: "${MY_KEY}", baseURL: "https://...", models: { default: ["model-id"] } }]`. Standard LibreChat behavior; not migration-specific. | The endpoint name appears in the model dropdown. |
+| **Capability-aware UI + pre-Run gate** (Phase 2) | Add `modelSpecs.list[*].capabilities: ["vision","tools","structured_output","web_search","file_search","actions","execute_code"]` per model. See `librechat.example.yaml` for a sample modelSpec. | Select a vision-capable spec — image-attach appears; select a text-only spec — it disappears. Sending a vision part to a non-vision model returns an error. |
+| **Council mode** (Phase 4) | `interface.council: true` in `librechat.yaml`. | Composer gains a "Council" toggle; flipping it on reveals strategy + model pickers (up to three legs). |
+| **Web-search citations** (Phase 5) | `webSearch.searchProvider: serper` (or `searxng`) plus `SERPER_API_KEY` in `.env`. | Ask a question requiring web search; assistant message shows clickable inline `[1]`-style anchors and a sources panel. |
+| **File-search citations** (Phase 5) | The bundled `rag_api` service is started by default; ensure `endpoints.agents.capabilities` includes `file_search`. Upload a file, attach it to a chat. | Same as web — sources panel shows file id + page numbers. |
+| **GitHub first-class** (Phase 7) | Uncomment the `mcpServers.github:` block in `librechat.example.yaml`, set `GITHUB_PAT` in `.env`. | Composer surfaces a "GitHub Context" picker; selecting a repo/file/PR/issue and asking a grounded question produces `kindSpecific.kind: 'github'` citations. |
+| **Retrieval donor ports** (Phase 6) | No runtime activation — these are library modules under `packages/api/src/retrieval/`, intentionally not wired into any active call path. They're available for future composition. | `docker compose exec api ls /app/packages/api/dist/retrieval/` shows `fusion.js`, `prompt.js`, `documents.js`, `schema.js`, `query.js`. |
 
 ---
 
