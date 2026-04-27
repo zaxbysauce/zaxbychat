@@ -21,7 +21,7 @@ const { Router } = require('express');
 const { generateCheckAccess } = require('@librechat/api');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 const { requireJwtAuth } = require('~/server/middleware');
-const db = require('~/db');
+const db = require('~/models');
 const {
   listEndpoints,
   createEndpoint,
