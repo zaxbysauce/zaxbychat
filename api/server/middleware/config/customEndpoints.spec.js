@@ -19,8 +19,7 @@ jest.mock('~/models', () => ({
 
 jest.mock('@librechat/api', () => ({
   mergeCustomEndpointsByName: (yaml, db) => [...(yaml || []), ...(db || [])],
-  dbRecordsToEndpoints: (records) =>
-    records.map((r) => r.config).filter(Boolean),
+  dbRecordsToEndpoints: (records) => records.map((r) => r.config).filter(Boolean),
 }));
 
 const middleware = require('./customEndpoints');
@@ -47,9 +46,7 @@ describe('attachDbCustomEndpoints — TTL cache', () => {
   });
 
   it('hits the DB on a cold cache and skips it on the next call within TTL', async () => {
-    mockListCustomEndpoints.mockResolvedValue([
-      { config: validConfig({ name: 'a' }) },
-    ]);
+    mockListCustomEndpoints.mockResolvedValue([{ config: validConfig({ name: 'a' }) }]);
 
     let next = jest.fn();
     await middleware(buildReq(), undefined, next);
@@ -63,9 +60,7 @@ describe('attachDbCustomEndpoints — TTL cache', () => {
   });
 
   it('reloads after invalidateDbCustomEndpointsCache()', async () => {
-    mockListCustomEndpoints.mockResolvedValue([
-      { config: validConfig({ name: 'a' }) },
-    ]);
+    mockListCustomEndpoints.mockResolvedValue([{ config: validConfig({ name: 'a' }) }]);
 
     await middleware(buildReq(), undefined, jest.fn());
     expect(mockListCustomEndpoints).toHaveBeenCalledTimes(1);
@@ -76,9 +71,7 @@ describe('attachDbCustomEndpoints — TTL cache', () => {
   });
 
   it('shallow-clones req.config so cached AppConfig is not mutated', async () => {
-    mockListCustomEndpoints.mockResolvedValue([
-      { config: validConfig({ name: 'a' }) },
-    ]);
+    mockListCustomEndpoints.mockResolvedValue([{ config: validConfig({ name: 'a' }) }]);
 
     const sharedAppConfig = {
       endpoints: { custom: [], something: 'unrelated' },
@@ -98,16 +91,22 @@ describe('attachDbCustomEndpoints — TTL cache', () => {
   });
 
   it('caches per-tenant separately', async () => {
-    mockListCustomEndpoints.mockResolvedValue([
-      { config: validConfig({ name: 'a' }) },
-    ]);
-    await middleware({ user: { tenantId: 'A' }, config: { endpoints: { custom: [] } } }, undefined, jest.fn());
-    await middleware({ user: { tenantId: 'B' }, config: { endpoints: { custom: [] } } }, undefined, jest.fn());
+    mockListCustomEndpoints.mockResolvedValue([{ config: validConfig({ name: 'a' }) }]);
+    await middleware(
+      { user: { tenantId: 'A' }, config: { endpoints: { custom: [] } } },
+      undefined,
+      jest.fn(),
+    );
+    await middleware(
+      { user: { tenantId: 'B' }, config: { endpoints: { custom: [] } } },
+      undefined,
+      jest.fn(),
+    );
     // Two distinct tenants, two DB calls.
     expect(mockListCustomEndpoints).toHaveBeenCalledTimes(2);
   });
 
-  it('falls back to YAML-only on DB error (degrade-don\'t-die)', async () => {
+  it("falls back to YAML-only on DB error (degrade-don't-die)", async () => {
     mockListCustomEndpoints.mockRejectedValue(new Error('mongo down'));
     const req = buildReq();
     const next = jest.fn();

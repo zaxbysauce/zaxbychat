@@ -33,9 +33,10 @@ async function loadDbEndpointsCached(req) {
     return entry.endpoints;
   }
   const records = await listCustomEndpoints();
-  const dbEndpoints = !records || records.length === 0
-    ? []
-    : dbRecordsToEndpoints(records.map((r) => ({ ...r, config: r.config })));
+  const dbEndpoints =
+    !records || records.length === 0
+      ? []
+      : dbRecordsToEndpoints(records.map((r) => ({ ...r, config: r.config })));
   cache.set(key, { at: now, endpoints: dbEndpoints });
   return dbEndpoints;
 }
