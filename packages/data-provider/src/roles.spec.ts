@@ -87,7 +87,11 @@ describe('roleDefaults', () => {
           restrictedSet.has(permType) ||
           permType === PermissionTypes.MEMORIES ||
           permType === PermissionTypes.PROMPTS ||
-          permType === PermissionTypes.AGENTS;
+          permType === PermissionTypes.AGENTS ||
+          // Phase 9 (D-P9-1): users may CREATE/UPDATE their own custom
+          // endpoints in the UI. Treated like AGENTS/PROMPTS — CREATE
+          // is intentional for self-owned resources.
+          permType === PermissionTypes.CUSTOM_ENDPOINTS;
 
         expect({
           permType,

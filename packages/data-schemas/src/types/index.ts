@@ -36,3 +36,5 @@ export * from './admin';
 export * from './web';
 /* MCP Servers */
 export * from './mcp';
+/* Phase 9 — Custom Endpoints */
+export * from './customEndpoint';

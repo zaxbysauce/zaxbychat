@@ -1100,3 +1100,40 @@ export interface ActiveJobsResponse {
 export const getActiveJobs = (): Promise<ActiveJobsResponse> => {
   return request.get(endpoints.activeJobs());
 };
+
+/* Phase 9 — DB-backed custom endpoints */
+import type {
+  TCustomEndpointCreateParams,
+  TCustomEndpointResponse,
+  TCustomEndpointsListResponse,
+  TCustomEndpointUpdateParams,
+  TTestCustomEndpointParams,
+  TTestCustomEndpointResponse,
+} from './types/customEndpoints';
+
+export const listCustomEndpoints = (): Promise<TCustomEndpointsListResponse> => {
+  return request.get(endpoints.customEndpoints.list);
+};
+
+export const createCustomEndpoint = (
+  data: TCustomEndpointCreateParams,
+): Promise<TCustomEndpointResponse> => {
+  return request.post(endpoints.customEndpoints.create, data);
+};
+
+export const updateCustomEndpoint = (
+  name: string,
+  data: TCustomEndpointUpdateParams,
+): Promise<TCustomEndpointResponse> => {
+  return request.patch(endpoints.customEndpointByName(name), data);
+};
+
+export const deleteCustomEndpoint = (name: string): Promise<{ ok: true }> => {
+  return request.delete(endpoints.customEndpointByName(name));
+};
+
+export const testCustomEndpoint = (
+  data: TTestCustomEndpointParams,
+): Promise<TTestCustomEndpointResponse> => {
+  return request.post(endpoints.customEndpoints.test, data);
+};

@@ -32,6 +32,7 @@ export * from './types/web';
 export * from './types/graph';
 export * from './types/sources';
 export * from './types/github';
+export * from './types/customEndpoints';
 export * from './citations';
 export * from './types/registry';
 /* access permissions */
