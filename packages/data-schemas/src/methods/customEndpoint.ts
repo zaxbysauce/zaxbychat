@@ -76,7 +76,11 @@ export function createCustomEndpointMethods(mongoose: typeof import('mongoose'))
    * response from a single request.
    */
   async function listCustomEndpoints(): Promise<CustomEndpointDocument[]> {
-    return model().find({}).sort({ updatedAt: -1 }).limit(LIST_HARD_LIMIT).lean();
+    return model()
+      .find({})
+      .sort({ updatedAt: -1, _id: 1 })
+      .limit(LIST_HARD_LIMIT)
+      .lean();
   }
 
   async function listCustomEndpointsByAuthor(
@@ -84,7 +88,7 @@ export function createCustomEndpointMethods(mongoose: typeof import('mongoose'))
   ): Promise<CustomEndpointDocument[]> {
     return model()
       .find({ author: authorId })
-      .sort({ updatedAt: -1 })
+      .sort({ updatedAt: -1, _id: 1 })
       .limit(LIST_HARD_LIMIT)
       .lean();
   }

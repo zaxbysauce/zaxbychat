@@ -116,7 +116,8 @@ describe('CustomEndpoint methods — find / list', () => {
   it('lists all records sorted by updatedAt desc', async () => {
     const author = new mongoose.Types.ObjectId();
     await methods.createCustomEndpoint({ name: 'a', config: baseConfig(), author });
-    await new Promise((r) => setTimeout(r, 5));
+    // Bump the gap so updatedAt differs even on slow CI workers.
+    await new Promise((r) => setTimeout(r, 25));
     await methods.createCustomEndpoint({ name: 'b', config: baseConfig(), author });
     const all = await methods.listCustomEndpoints();
     expect(all.map((e) => e.name)).toEqual(['b', 'a']);
