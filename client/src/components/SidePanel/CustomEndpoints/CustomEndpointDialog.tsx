@@ -25,8 +25,25 @@ import {
   useTestCustomEndpointMutation,
 } from '~/data-provider/CustomEndpoints';
 import { useLocalize } from '~/hooks';
+import type { TranslationKeys } from '~/hooks';
 
 const USER_PROVIDED = 'user_provided';
+
+/**
+ * Static map of capability → localize key. Phase 9 review: the prior
+ * dynamic `localize(\`com_ui_capability_${cap}\`)` form fooled the
+ * unused-i18n-keys CI check (literal strings are how it greps). The
+ * static map embeds each key as a literal so the linter sees them.
+ */
+const CAPABILITY_LABEL_KEYS: Record<CustomEndpointCapability, TranslationKeys> = {
+  vision: 'com_ui_capability_vision',
+  tools: 'com_ui_capability_tools',
+  structured_output: 'com_ui_capability_structured_output',
+  web_search: 'com_ui_capability_web_search',
+  file_search: 'com_ui_capability_file_search',
+  actions: 'com_ui_capability_actions',
+  execute_code: 'com_ui_capability_execute_code',
+};
 
 interface Props {
   open: boolean;
@@ -291,7 +308,7 @@ function CustomEndpointDialogContent({ open, onOpenChange, existing }: Props) {
                     checked={state.capabilities.has(cap)}
                     onChange={() => toggleCapability(cap)}
                   />
-                  <span>{localize(`com_ui_capability_${cap}` as never) || cap}</span>
+                  <span>{localize(CAPABILITY_LABEL_KEYS[cap]) || cap}</span>
                 </label>
               ))}
             </div>

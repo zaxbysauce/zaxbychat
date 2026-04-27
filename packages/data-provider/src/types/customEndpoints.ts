@@ -89,12 +89,24 @@ export type TCustomEndpointsListResponse = TCustomEndpointResponse[];
  * record that fails the strict schema; the relaxed shape is only used
  * for the probe path.
  */
+// Mirror `modelItemSchema` from config.ts (kept private there); the
+// probe relaxes the .min(1) requirement but keeps the same item type
+// so `customEndpointConfigSchema` records can be passed into the
+// probe without a TS narrowing mismatch.
+const testModelItemSchema = z.union([
+  z.string(),
+  z.object({
+    name: z.string(),
+    description: z.string().optional(),
+  }),
+]);
+
 export const testCustomEndpointConfigSchema = endpointSchema
   .omit({ models: true })
   .extend({
     models: z
       .object({
-        default: z.array(z.string()).optional(),
+        default: z.array(testModelItemSchema).optional(),
         fetch: z.boolean().optional(),
         userIdQuery: z.boolean().optional(),
       })

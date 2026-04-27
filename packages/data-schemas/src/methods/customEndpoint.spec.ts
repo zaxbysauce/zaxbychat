@@ -77,6 +77,10 @@ describe('CustomEndpoint methods — create', () => {
   });
 
   it('rejects duplicate names within the same tenant', async () => {
+    // Mongoose builds indexes asynchronously by default; force the
+    // unique (name, tenantId) index to exist before testing the
+    // duplicate-key path. Mirror the pattern from mcpServer.spec.ts.
+    await CustomEndpoint.ensureIndexes();
     const author = new mongoose.Types.ObjectId();
     await methods.createCustomEndpoint({
       name: 'dup',
